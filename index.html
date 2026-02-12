@@ -43,7 +43,7 @@
 
 <script>
     const canvas = document.getElementById('liveCanvas');
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     canvas.width = 600; canvas.height = 300;
 
     let audioCtx, analyser, dataArray;
