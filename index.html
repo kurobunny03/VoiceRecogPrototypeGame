@@ -9,7 +9,13 @@
         #container { display: flex; flex-direction: column; align-items: center; padding: 20px; min-height: 100vh; }
         
         /* Visualizer Canvas */
-        canvas { border: 2px solid #00d4ff; background: #000; border-radius: 8px; box-shadow: 0 0 15px rgba(0, 212, 255, 0.2); }
+        canvas { border: 2px solid #00d4ff; 
+   	 background: #000; 
+   	 border-radius: 8px; 
+   	 box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);
+    
+   	 max-width: 100%;  /* Shrink to fit the container */
+  	  height: auto;     /* Keep the aspect ratio correct */}
         
         /* The Gallery Strip */
         .gallery { display: flex; gap: 10px; margin: 20px 0; background: #1a1a1a; padding: 15px; border-radius: 10px; min-height: 100px; border: 1px solid #333; overflow-x: auto; max-width: 90vw; scrollbar-width: thin; }
@@ -227,27 +233,28 @@
             freq: freqSnapshot,
             analysis: aiAnalysis
         });
-
-        // 5. Update Gallery UI
-        addToGallery(word, snap);
+	addToGallery(word, liveCanvas);
         updateLibraryCount();
-        
         document.getElementById('wordInput').value = "";
         this.disabled = false;
     };
 
-    function addToGallery(word, imgData) {
-        const container = document.createElement('div');
-        container.className = 'captured-item';
-        
-        const miniCanvas = document.createElement('canvas');
-        miniCanvas.width = 100; miniCanvas.height = 60;
-        miniCanvas.getContext('2d').putImageData(imgData, 0, 0, 0, 0, 600, 200); // Scale down crop
-        
-        container.appendChild(miniCanvas);
-        container.innerHTML += `<div>${word}</div>`;
-        gallery.appendChild(container);
-    }
+    function addToGallery(word, sourceCanvas) {
+    	const container = document.createElement('div');
+   	 container.className = 'captured-item';
+    
+   	 const miniCanvas = document.createElement('canvas');
+   	 miniCanvas.width = 100; 
+   	 miniCanvas.height = 60;
+    
+   	 // The Magic Fix: drawImage() automatically scales the big canvas 
+    	// down to fit the tiny 100x60 mini canvas.
+    	miniCanvas.getContext('2d').drawImage(sourceCanvas, 0, 0, 100, 60);
+    
+    	container.appendChild(miniCanvas);
+    	container.innerHTML += `<div>${word}</div>`;
+   	 gallery.appendChild(container);
+}
 
     // --- CHALLENGE MODE LOGIC ---
     // --- IMPROVED AI COMPARISON LOGIC ---
