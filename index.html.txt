@@ -1,0 +1,22 @@
+async function getAIAnalysis(word, frequencies) {
+    try {
+        const response = await fetch('http://127.0.0.1:5000/analyze-sound', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-Custom-Password': 'stem_explorer_2026' // The Password Match
+            },
+            body: JSON.stringify({ 
+                word: word, 
+                frequencies: Array.from(frequencies).slice(0, 40) 
+            })
+        });
+        
+        if (!response.ok) throw new Error("Auth Failed");
+        
+        const data = await response.json();
+        document.getElementById('word-hint').innerText = "AI Insight: " + data.analysis;
+    } catch (error) {
+        console.error(error);
+    }
+}
