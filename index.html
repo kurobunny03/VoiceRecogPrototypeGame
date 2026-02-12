@@ -250,29 +250,46 @@
     }
 
     // --- CHALLENGE MODE LOGIC ---
+    // --- IMPROVED AI COMPARISON LOGIC ---
     function compareLiveToTarget(live, target) {
-        let totalDiff = 0;
-        let volume = 0;
-        
-        // Simple Euclidean Distance
-        for (let i = 0; i < live.length; i++) {
-            totalDiff += Math.abs(live[i] - target[i]);
-            volume += live[i];
-        }
-        
-        const avgVol = volume / live.length;
-        if (avgVol < 10) { // Noise gate
+        // 1. Noise Gate: Ignore silence so the meter doesn't jitter
+        // Sum up the volume to see if it's too quiet
+        let liveVol = 0;
+        for(let i=0; i<live.length; i++) liveVol += live[i];
+        liveVol = liveVol / live.length;
+
+        if (liveVol < 5) { 
             updateMeter(0);
-            return;
+            return; 
         }
 
-        const maxDiff = live.length * 255; 
-        let similarity = 100 - (totalDiff / maxDiff * 100);
-        similarity = Math.max(0, (similarity - 70) * 3.3); // Scale 70-100% to 0-100% for drama
-        
-        updateMeter(Math.floor(similarity));
-    }
+        // 2. Cosine Similarity (The "Shape" Matcher)
+        // This ignores volume differences and focuses on the frequency curve
+        let dotProduct = 0;
+        let magA = 0;
+        let magB = 0;
 
+        for (let i = 0; i < live.length; i++) {
+            dotProduct += live[i] * target[i];
+            magA += live[i] * live[i];
+            magB += target[i] * target[i];
+        }
+
+        const magnitude = Math.sqrt(magA) * Math.sqrt(magB);
+        if (magnitude === 0) return;
+
+        let similarity = dotProduct / magnitude; // Result is 0.0 to 1.0
+
+        // 3. "Forgiveness" Tuning
+        // Audio is messy. A raw score of 0.85 is actually a fantastic match.
+        // Let's map the range 0.7-1.0 to 0%-100% to make the game feel responsive.
+        let percent = 0;
+        if (similarity > 0.7) {
+            percent = (similarity - 0.7) * (100 / 0.3);
+        }
+
+        updateMeter(Math.floor(percent));
+    }
     function updateMeter(percent) {
         document.getElementById('ai-percent').innerText = percent;
         document.getElementById('ai-meter-bar').style.width = percent + "%";
