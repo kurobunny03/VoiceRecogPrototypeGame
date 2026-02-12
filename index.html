@@ -146,32 +146,35 @@
    0) CONFIG (NOTE: don't ship secrets in client code in prod)
    ========================================================= */
 const Config = {
-  // If you keep a password here, anyone can view-source it.
-  // In production, proxy calls through your own backend or use short-lived session tokens.
   API_URL: 'https://voicerecogprototypegame.onrender.com/analyze-sound',
+  // REMOVE password from client once you proxy server-side (we'll do that after)
   API_PASSWORD: 'stem_explorer_2026',
 
   MAX_ITEMS: 4,
 
-  // Capture
-  CAPTURE_MS: 1000,
-  CAPTURE_FPS: 60,      // sampling frequency of FFT snapshots during capture
-  USE_MEDIAN: true,     // median often more robust than average
+  // ===== VAD CAPTURE SETTINGS =====
+  CAPTURE_MAX_MS: 1200,      // hard stop (so we don't hang)
+  CAPTURE_MIN_MS: 250,       // minimum recorded audio time once speech starts
+  VAD_START_THRESHOLD: 8,    // avg FFT magnitude to consider "speech started"
+  VAD_END_THRESHOLD: 6,      // avg FFT magnitude to consider "speech ended"
+  VAD_SILENCE_HOLD_MS: 150,  // how long we must stay under END_THRESHOLD to stop
 
-  // Visuals/perf
-  DRAW_FPS: 30,         // cap render loop FPS for battery sanity
+  CAPTURE_FPS: 60,
+  USE_MEDIAN: true,
 
-  // Match gating
-  UNLOCK_THRESHOLD: 75, // percent
-  UNLOCK_HOLD_MS: 350,  // required hold duration
+  // ===== Challenge gating (make it forgiving) =====
+  REQUIRE_VOICE_UNLOCK: true, // set false to disable gating entirely
+  UNLOCK_THRESHOLD: 45,       // was 75 (too strict)
+  UNLOCK_HOLD_MS: 180,        // was 350
 
-  // Similarity threshold mapping
-  SIM_BASE: 0.65,
+  // Similarity threshold mapping (make it less strict)
+  SIM_BASE: 0.50,             // was 0.65
 
-  // Feature preprocessing
   USE_LOG: true,
   IGNORE_LOW_BINS: 2,
-  IGNORE_HIGH_BINS: 2
+  IGNORE_HIGH_BINS: 2,
+
+  DRAW_FPS: 30
 };
 
 const StorageKey = 'sonicFingerprintDataset_v2';
@@ -245,6 +248,63 @@ function debounce(fn, ms = 150) {
     t = setTimeout(() => fn(...args), ms);
   };
 }
+
+
+function avgEnergy(uint8Arr) {
+  let sum = 0;
+  for (let i = 0; i < uint8Arr.length; i++) sum += uint8Arr[i];
+  return sum / uint8Arr.length;
+}
+
+async function captureSpectrumVAD() {
+  const interval = Math.max(10, Math.floor(1000 / Config.CAPTURE_FPS));
+  const maxFrames = Math.max(10, Math.floor(Config.CAPTURE_MAX_MS / interval));
+
+  const frames = [];
+  let speechStarted = false;
+  let speechStartTime = null;
+  let lastLoudTime = null;
+
+  const startTs = performance.now();
+
+  for (let f = 0; f < maxFrames; f++) {
+    State.analyser.getByteFrequencyData(State.dataArray);
+    const snap = new Uint8Array(State.dataArray);
+    const e = avgEnergy(snap);
+    const now = performance.now();
+
+    if (!speechStarted) {
+      // Wait for speech to start
+      if (e >= Config.VAD_START_THRESHOLD) {
+        speechStarted = true;
+        speechStartTime = now;
+        lastLoudTime = now;
+        frames.push(snap);
+      }
+    } else {
+      frames.push(snap);
+
+      // Track last time we were "loud"
+      if (e >= Config.VAD_END_THRESHOLD) lastLoudTime = now;
+
+      const spokenMs = now - speechStartTime;
+      const silenceMs = now - lastLoudTime;
+
+      // Stop when we've spoken enough AND we've been silent long enough
+      if (spokenMs >= Config.CAPTURE_MIN_MS && silenceMs >= Config.VAD_SILENCE_HOLD_MS) {
+        break;
+      }
+    }
+
+    // Hard stop overall time (safety)
+    if (now - startTs >= Config.CAPTURE_MAX_MS) break;
+
+    await new Promise(r => setTimeout(r, interval));
+  }
+
+  return frames; // can be empty if user never spoke
+}
+
 
 /* =========================
    3) FEATURE PREPROCESSING
@@ -573,7 +633,7 @@ const Game = {
     }
   },
 
-  captureWord: async function() {
+captureWord: async function() {
     const word = DOM.wordInput.value.toUpperCase().trim();
     if (!word) return alert('Type a word first!');
 
@@ -673,6 +733,71 @@ const Game = {
 
     Game.refreshGallery();
   },
+
+  startRound: function() {
+    if (State.library.length < 3) {
+      DOM.feedback.textContent = 'Need at least 3 items for decoys.';
+      return;
+    }
+
+    // reset UI
+    DOM.feedback.textContent = '';
+    DOM.nextBtn.classList.add('hidden');
+    DOM.challengeHint.style.display = 'none';
+    DOM.optionsContainer.innerHTML = '';
+
+    // reset unlock gating
+    State.unlockStartTs = null;
+    State.unlocked = false;
+    Game.updateMeter(0);
+    Game.setChoicesEnabled(false);
+
+    // pick target
+    State.currentTarget = State.library[Math.floor(Math.random() * State.library.length)];
+    Visuals.drawStaticBars(mysteryCtx, State.currentTarget.freqRaw);
+
+    // build choices
+    let decoys = State.library.filter(i => i.word !== State.currentTarget.word)
+      .sort(() => 0.5 - Math.random()).slice(0, 2);
+    let choices = [State.currentTarget, ...decoys].sort(() => 0.5 - Math.random());
+
+    choices.forEach(choice => {
+      const btn = document.createElement('button');
+      btn.textContent = choice.word;
+      btn.style.background = '#333';
+      btn.disabled = false; // gated until voice match holds
+      btn.addEventListener('click', () => Game.handleGuess(choice, btn));
+      DOM.optionsContainer.appendChild(btn);
+    });
+
+    DOM.aiMatchText.textContent = 'Speak to match pattern...';
+    DOM.aiMatchText.style.color = '#555';
+  },
+
+  setChoicesEnabled: function(enabled) {
+    const all = DOM.optionsContainer.querySelectorAll('button');
+    all.forEach(b => b.disabled = !enabled);
+  },
+
+  handleGuess: function(choice, btn) {
+    // lock choices after guess
+    Game.setChoicesEnabled(false);
+
+    if (choice.word === State.currentTarget.word) {
+      DOM.feedback.innerHTML = "<span style='color:#00ff88'>✓ CORRECT</span>";
+      btn.style.background = '#00ff88';
+      btn.style.color = '#000';
+    } else {
+      DOM.feedback.innerHTML = "<span style='color:#ff4444'>✕ INCORRECT</span>";
+      btn.style.background = '#ff4444';
+
+      DOM.challengeHint.style.display = 'block';
+      DOM.challengeHint.textContent = `AI REPORT: ${State.currentTarget.analysis}`;
+    }
+
+    DOM.nextBtn.classList.remove('hidden');
+  },
+
 
   startRound: function() {
     if (State.library.length < 3) {
