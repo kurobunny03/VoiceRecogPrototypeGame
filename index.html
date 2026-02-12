@@ -1,22 +1,123 @@
-async function getAIAnalysis(word, frequencies) {
-    try {
-        const response = await fetch('http://127.0.0.1:5000/analyze-sound', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'X-Custom-Password': 'stem_explorer_2026' // The Password Match
-            },
-            body: JSON.stringify({ 
-                word: word, 
-                frequencies: Array.from(frequencies).slice(0, 40) 
-            })
-        });
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sonic Fingerprint Lab</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #111; color: white; text-align: center; margin: 0; }
+        #container { display: flex; flex-direction: column; align-items: center; padding: 20px; min-height: 100vh; }
+        canvas { border: 2px solid #00d4ff; background: #000; border-radius: 8px; margin-top: 10px; }
+        button { padding: 12px 24px; font-size: 14px; cursor: pointer; background: #00d4ff; border: none; border-radius: 5px; font-weight: bold; margin: 5px; }
+        button:disabled { background: #444; color: #777; }
         
-        if (!response.ok) throw new Error("Auth Failed");
+        /* AI Terminal Style */
+        #word-hint {
+            background: rgba(0, 20, 0, 0.9);
+            border-left: 4px solid #00ff88;
+            padding: 15px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            color: #00ff88;
+            max-width: 600px;
+            min-height: 40px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+
+<div id="container">
+    <h1>Sonic Fingerprint Lab</h1>
+    <p>1. Start Mic | 2. Say Word | 3. Capture & Analyze</p>
+    
+    <div class="controls">
+        <button id="startBtn">Start Microphone</button>
+        <input type="text" id="wordInput" placeholder="Enter Word..." style="padding: 10px;">
+        <button id="captureBtn" disabled>Capture & Analyze</button>
+    </div>
+
+    <div id="word-hint">AI_SYSTEM: Waiting for input...</div>
+    <canvas id="liveCanvas"></canvas>
+</div>
+
+<script>
+    const canvas = document.getElementById('liveCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 600; canvas.height = 300;
+
+    let audioCtx, analyser, dataArray;
+
+    // --- AUDIO SETUP ---
+    document.getElementById('startBtn').onclick = async function() {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 512;
         
-        const data = await response.json();
-        document.getElementById('word-hint').innerText = "AI Insight: " + data.analysis;
-    } catch (error) {
-        console.error(error);
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const source = audioCtx.createMediaStreamSource(stream);
+        source.connect(analyser);
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
+        
+        draw();
+        this.disabled = true;
+        document.getElementById('captureBtn').disabled = false;
+    };
+
+    function draw() {
+        requestAnimationFrame(draw);
+        analyser.getByteFrequencyData(dataArray);
+        
+        // Waterfall effect
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height - 2);
+        ctx.putImageData(imgData, 0, 2);
+
+        const barWidth = canvas.width / dataArray.length;
+        for (let i = 0; i < dataArray.length; i++) {
+            const val = dataArray[i];
+            ctx.fillStyle = `hsl(${180 + (val/2)}, 100%, ${val/2.5}%)`;
+            ctx.fillRect(i * barWidth, 0, barWidth, 2);
+        }
     }
-}
+
+    // --- AI CONNECTION ---
+    document.getElementById('captureBtn').onclick = async function() {
+        const word = document.getElementById('wordInput').value.trim();
+        if(!word) return alert("Please enter a word!");
+        
+        const hintBox = document.getElementById('word-hint');
+        hintBox.innerText = "AI_SYSTEM: Analyzing frequency data...";
+
+        // *** IMPORTANT: REPLACE THIS URL WITH YOUR RENDER URL ***
+        // Example: 'https://sonic-lab.onrender.com/analyze-sound'
+        // If testing locally, use 'http://127.0.0.1:10000/analyze-sound'
+        
+        const API_URL = 'https://YOUR-APP-NAME.onrender.com/analyze-sound'; 
+
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-Custom-Password': 'stem_explorer_2026'
+                },
+                body: JSON.stringify({ 
+                    word: word, 
+                    frequencies: Array.from(dataArray).slice(0, 50) 
+                })
+            });
+
+            if (!response.ok) throw new Error(`Server Error: ${response.status}`);
+            
+            const data = await response.json();
+            hintBox.innerText = "AI_SYSTEM: " + data.analysis;
+            
+        } catch (error) {
+            console.error(error);
+            hintBox.innerText = "AI_SYSTEM: Connection Failed. Check Console (F12).";
+        }
+    };
+</script>
+
+</body>
+</html>
