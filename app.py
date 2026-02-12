@@ -4,10 +4,21 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from openai import OpenAI
 
-app = Flask(__name__)
-CORS(app)
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
-MY_SECRET_PASSWORD = "stem_explorer_2026"
+limiter = Limiter(get_remote_address, app=app, default_limits=["60 per minute"])
+
+app = Flask(__name__)
+
+CORS(app, resources={
+    r"/analyze-sound": {"origins": [
+        "https://YOUR-FRONTEND-DOMAIN.com",
+        "http://localhost:5500"
+    ]}
+})
+
+MY_SECRET_PASSWORD = os.environ.get("MY_SECRET_PASSWORD")
 
 # 1. SETUP OPENAI CLIENT
 # We use the standard environment variable name
@@ -19,6 +30,7 @@ def health_check():
     return "STEM Lab (OpenAI Edition) is Online!", 200
 
 @app.route('/analyze-sound', methods=['POST'])
+@limiter.limit("20 per minute")
 def analyze_sound():
     try:
         # Security Check
