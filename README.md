@@ -2,7 +2,7 @@
 
 # 🧬 Sonic Fingerprint Lab: STEM Sound Explorer
 
-An interactive web-based STEM game that teaches students about acoustics, frequency, and pattern recognition. Using the Web Audio API and Gemini AI, players visualize their own voices as waterfall plots (spectrograms) and challenge themselves to recognize "sonic fingerprints."
+An interactive web-based STEM game that teaches students about acoustics, frequency, and pattern recognition. Using the Web Audio API and OpenAI, players visualize their own voices as waterfall plots (spectrograms) and challenge themselves to recognize "sonic fingerprints."
 
 
 ## 🔬 STEM Concepts Explored
