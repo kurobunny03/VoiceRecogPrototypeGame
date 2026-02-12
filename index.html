@@ -3,120 +3,361 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sonic Fingerprint Lab</title>
+    <title>Sonic Fingerprint AI Lab</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #111; color: white; text-align: center; margin: 0; }
         #container { display: flex; flex-direction: column; align-items: center; padding: 20px; min-height: 100vh; }
-        canvas { border: 2px solid #00d4ff; background: #000; border-radius: 8px; margin-top: 10px; }
-        button { padding: 12px 24px; font-size: 14px; cursor: pointer; background: #00d4ff; border: none; border-radius: 5px; font-weight: bold; margin: 5px; }
-        button:disabled { background: #444; color: #777; }
         
-        /* AI Terminal Style */
+        /* Visualizer Canvas */
+        canvas { border: 2px solid #00d4ff; background: #000; border-radius: 8px; box-shadow: 0 0 15px rgba(0, 212, 255, 0.2); }
+        
+        /* The Gallery Strip */
+        .gallery { display: flex; gap: 10px; margin: 20px 0; background: #1a1a1a; padding: 15px; border-radius: 10px; min-height: 100px; border: 1px solid #333; overflow-x: auto; max-width: 90vw; scrollbar-width: thin; }
+        .captured-item { font-size: 12px; color: #00d4ff; flex-shrink: 0; text-align: center; opacity: 0; animation: fadeIn 0.5s forwards; }
+        .captured-item canvas { border: 1px solid #555; width: 100px; height: 60px; border-radius: 4px; margin-bottom: 5px; }
+
+        /* Controls */
+        .controls { margin-bottom: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        button { padding: 12px 24px; font-size: 14px; cursor: pointer; background: #00d4ff; border: none; border-radius: 5px; font-weight: bold; color: #111; transition: 0.2s; text-transform: uppercase; letter-spacing: 1px; }
+        button:hover:not(:disabled) { background: #fff; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,212,255,0.4); }
+        button:disabled { background: #333; color: #666; cursor: not-allowed; box-shadow: none; transform: none; }
+        
+        input { padding: 12px; border-radius: 5px; border: 2px solid #333; background: #222; color: white; width: 150px; text-align: center; font-weight: bold; }
+        input:focus { border-color: #00d4ff; outline: none; }
+
+        /* THE AI TERMINAL (Restored) */
         #word-hint {
-            background: rgba(0, 20, 0, 0.9);
+            background: rgba(0, 20, 0, 0.95);
             border-left: 4px solid #00ff88;
             padding: 15px;
-            margin: 20px 0;
+            margin: 15px 0;
             font-family: 'Courier New', monospace;
             color: #00ff88;
-            max-width: 600px;
+            width: 100%; max-width: 600px;
             min-height: 40px;
             text-align: left;
+            font-size: 13px;
+            line-height: 1.4;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+            border-radius: 0 5px 5px 0;
         }
+
+        /* Challenge Mode UI */
+        #challenge-section { display: none; flex-direction: column; align-items: center; width: 100%; }
+        #challenge-ui { background: #222; padding: 25px; border-radius: 15px; border: 1px solid #444; max-width: 500px; width: 90%; position: relative; }
+        
+        /* AI Meter */
+        .ai-status { background: #111; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #333; }
+        .meter-bg { background: #333; width: 100%; height: 8px; border-radius: 4px; margin-top: 8px; overflow: hidden; }
+        #ai-meter-bar { height: 100%; background: linear-gradient(90deg, #00d4ff, #00ff88); width: 0%; transition: width 0.2s; }
+
+        .feedback { margin-top: 15px; font-size: 1.2em; font-weight: bold; min-height: 1.5em; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .hidden { display: none !important; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
 <div id="container">
-    <h1>Sonic Fingerprint Lab</h1>
-    <p>1. Start Mic | 2. Say Word | 3. Capture & Analyze</p>
+    <h1 style="text-shadow: 0 0 10px rgba(0,212,255,0.5);">🧬 Sonic Fingerprint Lab</h1>
     
-    <div class="controls">
-        <button id="startBtn">Start Microphone</button>
-        <input type="text" id="wordInput" placeholder="Enter Word..." style="padding: 10px;">
-        <button id="captureBtn" disabled>Capture & Analyze</button>
+    <div id="lab-section">
+        <p style="color:#aaa;">Record <b>4 different words</b> to build your dataset.</p>
+        
+        <canvas id="liveCanvas"></canvas>
+        <div id="word-hint">AI_SYSTEM: Initialize Microphone to begin analysis...</div>
+
+        <div class="controls">
+            <button id="startBtn">1. Start Mic</button>
+            <input type="text" id="wordInput" placeholder="Type Word (e.g. HELLO)">
+            <button id="captureBtn" disabled>2. Capture & Analyze</button>
+        </div>
+
+        <div id="training-gallery">
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%; max-width:600px; margin:0 auto;">
+                <span style="color:#666; font-size:12px;">DATASET PROGRESS: <span id="count" style="color:white; font-weight:bold;">0</span>/4</span>
+                <button id="goToChallengeBtn" disabled style="background: #ff00d4; font-size:12px; padding:8px 16px;">Enter Challenge Mode →</button>
+            </div>
+            <div class="gallery" id="gallery"></div>
+        </div>
+        
+        <button id="resetLabBtn" style="background:transparent; border:1px solid #444; color:#666; font-size:11px; margin-top:20px;">Reset Lab</button>
     </div>
 
-    <div id="word-hint">AI_SYSTEM: Waiting for input...</div>
-    <canvas id="liveCanvas"></canvas>
+    <div id="challenge-section">
+        <button id="backToLabBtn" style="background: #333; color: white; margin-bottom: 20px; width: 100%; max-width: 500px;">← Back to Lab Data</button>
+        
+        <div id="challenge-ui">
+            <h2 style="margin-top:0; color:#ff00d4;">Mystery Pattern</h2>
+            <canvas id="mysteryCanvas"></canvas>
+            
+            <div class="ai-status">
+                <div style="display:flex; justify-content:space-between; font-size:12px; color:#888;">
+                    <span>LIVE VOICE MATCH</span>
+                    <span><span id="ai-percent" style="color:white;">0</span>%</span>
+                </div>
+                <div class="meter-bg"><div id="ai-meter-bar"></div></div>
+                <small id="ai-match-text" style="display:block; margin-top:5px; color:#555; font-size:11px;">Speak to compare your voice...</small>
+            </div>
+
+            <div id="challenge-hint" style="background:#222; border:1px dashed #555; padding:10px; margin:10px 0; font-size:12px; color:#aaa; display:none;"></div>
+
+            <div id="options-container" class="controls"></div>
+            <div id="feedback" class="feedback"></div>
+            <button id="nextBtn" class="hidden" style="background: #fff; width:100%;">Next Round →</button>
+        </div>
+    </div>
 </div>
 
 <script>
-    const canvas = document.getElementById('liveCanvas');
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    canvas.width = 600; canvas.height = 300;
+    // --- CONFIGURATION ---
+    // PASTE YOUR RENDER URL HERE (Ensure it starts with https://)
+    const API_URL = 'https://voicerecogprototypegame.onrender.com/analyze-sound'; 
+    const API_PASSWORD = 'stem_explorer_2026';
 
-    let audioCtx, analyser, dataArray;
+    // --- SETUP ---
+    const liveCanvas = document.getElementById('liveCanvas');
+    const liveCtx = liveCanvas.getContext('2d', { willReadFrequently: true }); // Optimized
+    const mysteryCanvas = document.getElementById('mysteryCanvas');
+    const mysteryCtx = mysteryCanvas.getContext('2d');
+    const gallery = document.getElementById('gallery');
+    
+    liveCanvas.width = mysteryCanvas.width = 600;
+    liveCanvas.height = mysteryCanvas.height = 200;
 
-    // --- AUDIO SETUP ---
-    document.getElementById('startBtn').onclick = async function() {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 512;
-        
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const source = audioCtx.createMediaStreamSource(stream);
-        source.connect(analyser);
-        dataArray = new Uint8Array(analyser.frequencyBinCount);
-        
-        draw();
-        this.disabled = true;
-        document.getElementById('captureBtn').disabled = false;
-    };
+    let audioCtx, analyser, dataArray, animationId;
+    let library = []; 
+    let currentTarget = null; // The object we are trying to guess
+    let isMicActive = false;
 
-    function draw() {
-        requestAnimationFrame(draw);
-        analyser.getByteFrequencyData(dataArray);
-        
-        // Waterfall effect
-        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height - 2);
-        ctx.putImageData(imgData, 0, 2);
-
-        const barWidth = canvas.width / dataArray.length;
-        for (let i = 0; i < dataArray.length; i++) {
-            const val = dataArray[i];
-            ctx.fillStyle = `hsl(${180 + (val/2)}, 100%, ${val/2.5}%)`;
-            ctx.fillRect(i * barWidth, 0, barWidth, 2);
+    // --- AUDIO ENGINE ---
+    async function initAudio() {
+        if (!audioCtx) {
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 512;
+                analyser.smoothingTimeConstant = 0.85; // Smoother visuals
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const source = audioCtx.createMediaStreamSource(stream);
+                source.connect(analyser);
+                
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+                isMicActive = true;
+                draw();
+                
+                document.getElementById('word-hint').innerText = "AI_SYSTEM: Microphone Active. Ready to capture.";
+            } catch (e) {
+                alert("Microphone Error: " + e.message);
+            }
         }
     }
 
-    // --- AI CONNECTION ---
+    function draw() {
+        if(!isMicActive) return;
+        requestAnimationFrame(draw);
+        analyser.getByteFrequencyData(dataArray);
+
+        // Waterfall Effect (Shift image down)
+        const imgData = liveCtx.getImageData(0, 0, liveCanvas.width, liveCanvas.height - 2);
+        liveCtx.putImageData(imgData, 0, 2);
+
+        // Draw new line at top
+        const barWidth = liveCanvas.width / dataArray.length;
+        for (let i = 0; i < dataArray.length; i++) {
+            const val = dataArray[i];
+            // STEM Coloring: Low freq = Red, High freq = Blue
+            const hue = 180 + (val * 0.8); 
+            liveCtx.fillStyle = `hsl(${hue}, 100%, ${val/2.5}%)`;
+            liveCtx.fillRect(i * barWidth, 0, barWidth, 2);
+        }
+
+        // Real-time Match Logic (Only in Challenge Mode)
+        if (currentTarget && document.getElementById('challenge-section').style.display === 'flex') {
+            compareLiveToTarget(dataArray, currentTarget.freq);
+        }
+    }
+
+    // --- AI & CAPTURE LOGIC ---
     document.getElementById('captureBtn').onclick = async function() {
-        const word = document.getElementById('wordInput').value.trim();
-        if(!word) return alert("Please enter a word!");
+        const word = document.getElementById('wordInput').value.toUpperCase().trim();
+        if(!word) return alert("Please type the word you are saying!");
         
-        const hintBox = document.getElementById('word-hint');
-        hintBox.innerText = "AI_SYSTEM: Analyzing frequency data...";
-
-        // *** IMPORTANT: REPLACE THIS URL WITH YOUR RENDER URL ***
-        // Example: 'https://sonic-lab.onrender.com/analyze-sound'
-        // If testing locally, use 'http://127.0.0.1:10000/analyze-sound'
+        // 1. Capture Data
+        const snap = liveCtx.getImageData(0, 0, liveCanvas.width, liveCanvas.height);
+        const freqSnapshot = new Uint8Array(dataArray); // Deep copy
         
-        const API_URL = 'https://voicerecogprototypegame.onrender.com/analyze-sound'; 
+        // 2. UI Updates
+        document.getElementById('word-hint').innerText = `AI_SYSTEM: Analyzing spectral data for "${word}"...`;
+        this.disabled = true;
 
+        // 3. Send to Python Backend (Gemini)
+        let aiAnalysis = "Analysis unavailable (Offline Mode)";
         try {
             const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'X-Custom-Password': 'stem_explorer_2026'
+                    'X-Custom-Password': API_PASSWORD
                 },
                 body: JSON.stringify({ 
                     word: word, 
-                    frequencies: Array.from(dataArray).slice(0, 50) 
+                    frequencies: Array.from(freqSnapshot).slice(0, 40) // Send mostly low-mid freqs
                 })
             });
 
-            if (!response.ok) throw new Error(`Server Error: ${response.status}`);
-            
-            const data = await response.json();
-            hintBox.innerText = "AI_SYSTEM: " + data.analysis;
-            
+            if (response.ok) {
+                const data = await response.json();
+                aiAnalysis = data.analysis;
+                document.getElementById('word-hint').innerText = "AI_RESULT: " + aiAnalysis;
+            } else {
+                throw new Error("Server blocked request");
+            }
         } catch (error) {
             console.error(error);
-            hintBox.innerText = "AI_SYSTEM: Connection Failed. Check Console (F12).";
+            document.getElementById('word-hint').innerText = "AI_SYSTEM: connection failed. Using offline mode.";
         }
+
+        // 4. Save to Library
+        library.push({ 
+            word: word, 
+            data: snap, 
+            freq: freqSnapshot,
+            analysis: aiAnalysis
+        });
+
+        // 5. Update Gallery UI
+        addToGallery(word, snap);
+        updateLibraryCount();
+        
+        document.getElementById('wordInput').value = "";
+        this.disabled = false;
     };
+
+    function addToGallery(word, imgData) {
+        const container = document.createElement('div');
+        container.className = 'captured-item';
+        
+        const miniCanvas = document.createElement('canvas');
+        miniCanvas.width = 100; miniCanvas.height = 60;
+        miniCanvas.getContext('2d').putImageData(imgData, 0, 0, 0, 0, 600, 200); // Scale down crop
+        
+        container.appendChild(miniCanvas);
+        container.innerHTML += `<div>${word}</div>`;
+        gallery.appendChild(container);
+    }
+
+    // --- CHALLENGE MODE LOGIC ---
+    function compareLiveToTarget(live, target) {
+        let totalDiff = 0;
+        let volume = 0;
+        
+        // Simple Euclidean Distance
+        for (let i = 0; i < live.length; i++) {
+            totalDiff += Math.abs(live[i] - target[i]);
+            volume += live[i];
+        }
+        
+        const avgVol = volume / live.length;
+        if (avgVol < 10) { // Noise gate
+            updateMeter(0);
+            return;
+        }
+
+        const maxDiff = live.length * 255; 
+        let similarity = 100 - (totalDiff / maxDiff * 100);
+        similarity = Math.max(0, (similarity - 70) * 3.3); // Scale 70-100% to 0-100% for drama
+        
+        updateMeter(Math.floor(similarity));
+    }
+
+    function updateMeter(percent) {
+        document.getElementById('ai-percent').innerText = percent;
+        document.getElementById('ai-meter-bar').style.width = percent + "%";
+        
+        const text = document.getElementById('ai-match-text');
+        if (percent > 80) { text.innerText = "MATCH CONFIRMED"; text.style.color = "#00ff88"; }
+        else if (percent > 40) { text.innerText = "DETECTING PATTERN..."; text.style.color = "#00d4ff"; }
+        else { text.innerText = "NO MATCH"; text.style.color = "#555"; }
+    }
+
+    function startRound() {
+        document.getElementById('feedback').innerText = "";
+        document.getElementById('nextBtn').classList.add('hidden');
+        document.getElementById('challenge-hint').style.display = 'none';
+        
+        const optionsContainer = document.getElementById('options-container');
+        optionsContainer.innerHTML = "";
+
+        // Pick Random Target
+        currentTarget = library[Math.floor(Math.random() * library.length)];
+        mysteryCtx.putImageData(currentTarget.data, 0, 0);
+
+        // Setup Decoys
+        let decoys = library.filter(item => item.word !== currentTarget.word)
+                            .sort(() => 0.5 - Math.random()).slice(0, 2);
+        let choices = [currentTarget, ...decoys].sort(() => 0.5 - Math.random());
+
+        // Create Buttons
+        choices.forEach(choice => {
+            const btn = document.createElement('button');
+            btn.innerText = choice.word;
+            btn.style.background = "#333";
+            
+            btn.onclick = () => {
+                // Disable all buttons
+                document.querySelectorAll('#options-container button').forEach(b => b.disabled = true);
+                
+                if(choice.word === currentTarget.word) {
+                    document.getElementById('feedback').innerText = "✓ CORRECT";
+                    document.getElementById('feedback').style.color = "#00ff88";
+                } else {
+                    document.getElementById('feedback').innerText = "✕ INCORRECT";
+                    document.getElementById('feedback').style.color = "#ff4444";
+                    
+                    // Show AI Explanation on failure
+                    const hintBox = document.getElementById('challenge-hint');
+                    hintBox.style.display = 'block';
+                    hintBox.innerText = `AI LAB REPORT: ${currentTarget.analysis}`;
+                }
+                document.getElementById('nextBtn').classList.remove('hidden');
+            };
+            optionsContainer.appendChild(btn);
+        });
+    }
+
+    // --- EVENT LISTENERS ---
+    document.getElementById('startBtn').onclick = function() { 
+        initAudio(); 
+        this.disabled = true; 
+        this.innerText = "MIC ACTIVE";
+        document.getElementById('captureBtn').disabled = false; 
+    };
+    
+    document.getElementById('resetLabBtn').onclick = function() { location.reload(); };
+    
+    document.getElementById('goToChallengeBtn').onclick = function() { 
+        document.getElementById('lab-section').classList.add('hidden'); 
+        document.getElementById('challenge-section').style.display = 'flex'; 
+        startRound(); 
+    };
+    
+    document.getElementById('backToLabBtn').onclick = function() { 
+        document.getElementById('challenge-section').style.display = 'none'; 
+        document.getElementById('lab-section').classList.remove('hidden'); 
+        currentTarget = null; 
+    };
+    
+    document.getElementById('nextBtn').onclick = startRound;
+
+    function updateLibraryCount() {
+        const count = library.length;
+        document.getElementById('count').innerText = count;
+        document.getElementById('goToChallengeBtn').disabled = count < 4;
+        if(count >= 4) document.getElementById('goToChallengeBtn').style.boxShadow = "0 0 15px #ff00d4";
+    }
 </script>
 
 </body>
