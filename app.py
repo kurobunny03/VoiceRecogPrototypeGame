@@ -5,10 +5,18 @@ from flask_cors import CORS
 from openai import OpenAI
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "https://kurobunny03.github.io"}})
 
-MY_SECRET_PASSWORD = "stem_explorer_2026"
-
+@app.route('/analyze-sound', methods=['POST'])
+def analyze_sound():
+    try:
+        # 2. Check the header
+        client_password = request.headers.get("X-Custom-Password")
+        
+        # 3. Enhanced Security: Check if the secret exists AND matches
+        if not API_AUTH_SECRET or client_password != API_AUTH_SECRET:
+            print(f"SECURITY ALERT: Unauthorized access attempt.")
+            return jsonify({"error": "Unauthorized Access"}), 403
 # 1. SETUP OPENAI CLIENT
 # We use the standard environment variable name
 api_key = os.environ.get("OPENAI_API_KEY")
@@ -17,6 +25,8 @@ client = OpenAI(api_key=api_key)
 @app.route('/', methods=['GET'])
 def health_check():
     return "STEM Lab (OpenAI Edition) is Online!", 200
+
+API_AUTH_SECRET = os.environ.get("LAB_AUTH_PASSWORD")
 
 @app.route('/analyze-sound', methods=['POST'])
 def analyze_sound():
