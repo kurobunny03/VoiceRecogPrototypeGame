@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sonic Fingerprint AI Lab</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #111; color: white; text-align: center; margin: 0; }
+        #container { display: flex; flex-direction: column; align-items: center; padding: 20px; min-height: 100vh; }
+        
+        .visualizers { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; margin: 20px 0; }
+        canvas { border: 2px solid #00d4ff; background: #000; border-radius: 8px; }
+        
+        .gallery { display: flex; gap: 10px; margin: 20px; background: #222; padding: 15px; border-radius: 10px; min-height: 100px; border: 1px dashed #444; overflow-x: auto; max-width: 90vw; }
+        .captured-item { font-size: 12px; color: #00d4ff; flex-shrink: 0; }
+        .captured-item canvas { border: 1px solid #555; width: 100px; height: 60px; border-radius: 4px; }
+
+        .controls { margin-bottom: 20px; }
+        button { padding: 12px 24px; font-size: 14px; cursor: pointer; background: #00d4ff; border: none; border-radius: 5px; font-weight: bold; color: #111; margin: 5px; transition: 0.2s; }
+        button:hover:not(:disabled) { background: #fff; transform: translateY(-2px); }
+        button:disabled { background: #444; color: #777; cursor: not-allowed; }
+        
+        #challenge-section { display: none; flex-direction: column; align-items: center; }
+        #challenge-ui { background: #2a2a2a; padding: 25px; border-radius: 15px; border: 2px solid #ff00d4; max-width: 500px; width: 100%; }
+        
+        /* AI Meter Styles */
+        .ai-status { background: #000; padding: 10px; border-radius: 8px; margin: 10px 0; border: 1px solid #444; }
+        #ai-meter-bar { height: 10px; background: #00d4ff; width: 0%; transition: width 0.1s; border-radius: 5px; }
+        .meter-bg { background: #333; width: 100%; height: 10px; border-radius: 5px; margin-top: 5px; }
+
+        .hidden { display: none !important; }
+        .feedback { margin-top: 15px; font-size: 1.2em; font-weight: bold; min-height: 1.5em; }
+        .reset-btn { background: #ff4444; color: white; }
+    </style>
+</head>
+<body>
+
+<div id="container">
+    <h1>Sonic Fingerprint AI Lab</h1>
+    
+    <div id="lab-section">
+        <p>Record <b>4 words</b>. The AI will learn your voice patterns!</p>
+        <div class="controls">
+            <button id="startBtn">Start Microphone</button>
+            <input type="text" id="wordInput" placeholder="Enter Word..." style="padding: 11px; border-radius: 5px; border: none; width: 150px;">
+            <button id="captureBtn" disabled>Capture Waveform</button>
+            <button id="goToChallengeBtn" disabled style="background: #ff00d4; color: white;">Start Challenge</button>
+            <button id="resetLabBtn" class="reset-btn">Reset All</button>
+        </div>
+        
+        <canvas id="liveCanvas"></canvas>
+
+        <div id="training-gallery">
+            <p>Your Dataset: (<span id="count">0</span>/4 recorded)</p>
+            <div class="gallery" id="gallery"></div>
+        </div>
+    </div>
+
+    <div id="challenge-section">
+        <button id="backToLabBtn" style="background: #555; color: white; margin-bottom: 20px;">← Back to Lab</button>
+        <div id="challenge-ui">
+            <h2>AI Comparison Mode</h2>
+            <canvas id="mysteryCanvas"></canvas>
+            
+            <div class="ai-status">
+                <div>AI Similarity Score: <span id="ai-percent">0</span>%</div>
+                <div class="meter-bg"><div id="ai-meter-bar"></div></div>
+                <small id="ai-hint" style="color:#aaa">Speak to let the AI compare sounds...</small>
+            </div>
+
+            <div id="options-container"></div>
+            <div id="feedback" class="feedback"></div>
+            <button id="nextBtn" class="hidden" style="background: #fff;">Next Round →</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const liveCanvas = document.getElementById('liveCanvas');
+    const liveCtx = liveCanvas.getContext('2d');
+    const mysteryCanvas = document.getElementById('mysteryCanvas');
+    const mysteryCtx = mysteryCanvas.getContext('2d');
+    const gallery = document.getElementById('gallery');
+    
+    liveCanvas.width = mysteryCanvas.width = 400;
+    liveCanvas.height = mysteryCanvas.height = 250;
+
+    let audioCtx, analyser, dataArray, animationId;
+    let library = []; 
+    let currentTargetFreqData = null; // Store pure frequency data for AI comparison
+
+    async function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 512;
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const source = audioCtx.createMediaStreamSource(stream);
+            source.connect(analyser);
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+        }
+        draw();
+    }
+
+    function draw() {
+        const imgData = liveCtx.getImageData(0, 0, liveCanvas.width, liveCanvas.height - 2);
+        liveCtx.putImageData(imgData, 0, 2);
+        analyser.getByteFrequencyData(dataArray);
+
+        // --- AI COMPARISON LOGIC ---
+        if (currentTargetFreqData && document.getElementById('challenge-section').style.display === 'flex') {
+            compareLiveToTarget(dataArray, currentTargetFreqData);
+        }
+
+        const barWidth = liveCanvas.width / dataArray.length;
+        for (let i = 0; i < dataArray.length; i++) {
+            const val = dataArray[i];
+            liveCtx.fillStyle = `hsl(${180 + (val/2)}, 100%, ${val/3}%)`;
+            liveCtx.fillRect(i * barWidth, 0, barWidth, 2);
+        }
+        animationId = requestAnimationFrame(draw);
+    }
+
+    // AI Similarity Engine using Euclidean Distance
+    function compareLiveToTarget(live, target) {
+        let totalDiff = 0;
+        for (let i = 0; i < live.length; i++) {
+            totalDiff += Math.abs(live[i] - target[i]);
+        }
+        
+        // Normalize difference to a percentage (lower diff = higher match)
+        const maxDiff = live.length * 128; // Heuristic for sensitivity
+        let similarity = Math.max(0, 100 - (totalDiff / maxDiff) * 100);
+        
+        // Only show high similarity if there is actually sound happening
+        const volume = live.reduce((a, b) => a + b) / live.length;
+        if (volume < 5) similarity = 0;
+
+        document.getElementById('ai-percent').innerText = Math.floor(similarity);
+        document.getElementById('ai-meter-bar').style.width = similarity + "%";
+        
+        const hint = document.getElementById('ai-hint');
+        if (similarity > 70) hint.innerText = "AI Analysis: Strong Match!";
+        else if (similarity > 30) hint.innerText = "AI Analysis: Detecting similar patterns...";
+        else hint.innerText = "AI Analysis: No match detected.";
+    }
+
+    document.getElementById('captureBtn').onclick = function() {
+        const word = document.getElementById('wordInput').value.toUpperCase().trim();
+        if(!word) return alert("Enter a word!");
+        
+        const snap = liveCtx.getImageData(0, 0, liveCanvas.width, liveCanvas.height);
+        // Store both visual data and a snapshot of the current frequency spectrum
+        library.push({ 
+            word: word, 
+            data: snap, 
+            freq: new Uint8Array(dataArray) 
+        });
+
+        const container = document.createElement('div');
+        container.className = 'captured-item';
+        const mini = document.createElement('canvas');
+        mini.width = 100; mini.height = 60;
+        mini.getContext('2d').drawImage(liveCanvas, 0, 0, 100, 60);
+        container.appendChild(mini);
+        container.innerHTML += `<br>${word}`;
+        gallery.appendChild(container);
+
+        document.getElementById('wordInput').value = "";
+        updateLibraryCount();
+    };
+
+    function updateLibraryCount() {
+        const count = library.length;
+        document.getElementById('count').innerText = count;
+        document.getElementById('goToChallengeBtn').disabled = count < 4;
+    }
+
+    document.getElementById('startBtn').onclick = function() { initAudio(); this.disabled = true; document.getElementById('captureBtn').disabled = false; };
+    document.getElementById('resetLabBtn').onclick = function() { location.reload(); };
+    document.getElementById('goToChallengeBtn').onclick = function() { document.getElementById('lab-section').classList.add('hidden'); document.getElementById('challenge-section').style.display = 'flex'; startRound(); };
+    document.getElementById('backToLabBtn').onclick = function() { document.getElementById('challenge-section').style.display = 'none'; document.getElementById('lab-section').classList.remove('hidden'); currentTargetFreqData = null; };
+
+    function startRound() {
+        document.getElementById('feedback').innerText = "";
+        document.getElementById('nextBtn').classList.add('hidden');
+        const optionsContainer = document.getElementById('options-container');
+        optionsContainer.innerHTML = "";
+
+        const target = library[Math.floor(Math.random() * library.length)];
+        currentTargetFreqData = target.freq;
+        mysteryCtx.putImageData(target.data, 0, 0);
+
+        let decoys = library.filter(item => item.word !== target.word).sort(() => 0.5 - Math.random()).slice(0, 2);
+        let choices = [target, ...decoys].sort(() => 0.5 - Math.random());
+
+        choices.forEach(choice => {
+            const btn = document.createElement('button');
+            btn.innerText = choice.word;
+            btn.style.background = "#444"; btn.style.color = "white";
+            btn.onclick = () => {
+                const buttons = document.querySelectorAll('#options-container button');
+                buttons.forEach(b => b.disabled = true);
+                if(choice.word === target.word) {
+                    document.getElementById('feedback').innerText = "Correct!";
+                    document.getElementById('feedback').style.color = "#00ff88";
+                } else {
+                    document.getElementById('feedback').innerText = "Incorrect!";
+                    document.getElementById('feedback').style.color = "#ff4444";
+                }
+                document.getElementById('nextBtn').classList.remove('hidden');
+            };
+            optionsContainer.appendChild(btn);
+        });
+    }
+
+    document.getElementById('nextBtn').onclick = startRound;
+</script>
+</body>
+</html>
