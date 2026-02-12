@@ -5,125 +5,64 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Sonic Fingerprint AI Lab</title>
     <style>
-        /* --- MOBILE-FIRST CSS --- */
+        /* --- 1. GLOBAL LAYOUT --- */
         body { font-family: 'Segoe UI', sans-serif; background: #111; color: white; text-align: center; margin: 0; overflow-x: hidden; }
         #container { display: flex; flex-direction: column; align-items: center; padding: 15px; min-height: 100vh; box-sizing: border-box; width: 100%; }
         
         h1 { font-size: 1.8rem; margin: 10px 0; text-shadow: 0 0 10px rgba(0,212,255,0.5); }
         p { font-size: 0.9rem; color: #aaa; margin-bottom: 15px; }
 
-        /* RESPONSIVE CANVAS */
+        /* --- 2. CANVASES --- */
         canvas { 
-            border: 2px solid #00d4ff; 
-            background: #000; 
-            border-radius: 8px; 
-            box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);
-            touch-action: none; /* Prevents scrolling when touching canvas */
-            
-            /* Responsive Width */
-            width: 100%;
-            max-width: 600px;
-            height: auto;
+            border: 2px solid #00d4ff; background: #000; border-radius: 8px; 
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.2); touch-action: none;
+            width: 100%; max-width: 600px; height: auto; transition: opacity 1s ease-in-out;
         }
         
-        /* SCROLLABLE GALLERY */
+        /* --- 3. GALLERY STRIP --- */
         .gallery { 
-            display: flex; gap: 10px; margin: 20px 0; 
-            background: #1a1a1a; padding: 10px; border-radius: 10px; 
-            min-height: 90px; border: 1px solid #333; 
-            
-            /* Enable Swipe Scrolling */
-            overflow-x: auto; 
-            width: 100%; 
-            max-width: 600px; 
-            scrollbar-width: none; 
-            box-sizing: border-box;
+            display: flex; gap: 10px; margin: 20px 0; background: #1a1a1a; padding: 10px; 
+            border-radius: 10px; min-height: 90px; border: 1px solid #333; 
+            overflow-x: auto; width: 100%; max-width: 600px; scrollbar-width: none; 
         }
         .gallery::-webkit-scrollbar { display: none; }
-
-        .captured-item { font-size: 10px; color: #00d4ff; flex-shrink: 0; text-align: center; opacity: 0; animation: fadeIn 0.5s forwards; }
+        .captured-item { font-size: 10px; color: #00d4ff; flex-shrink: 0; text-align: center; animation: fadeIn 0.5s forwards; }
         .captured-item canvas { border: 1px solid #555; width: 80px; height: 50px; border-radius: 4px; margin-bottom: 5px; }
 
-        /* TOUCH-FRIENDLY CONTROLS */
-        .controls { 
-            margin-bottom: 20px; 
-            display: flex; 
-            gap: 10px; 
-            justify-content: center; 
-            flex-wrap: wrap; 
-            width: 100%;
-            max-width: 600px;
-        }
+        /* --- 4. CONTROLS & INPUTS --- */
+        .controls { margin-bottom: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; width: 100%; max-width: 600px; }
         
         button { 
-            padding: 14px 20px; /* Bigger touch target */
-            font-size: 14px; 
-            cursor: pointer; 
-            background: #00d4ff; 
-            border: none; 
-            border-radius: 8px; 
-            font-weight: bold; 
-            color: #111; 
-            transition: 0.2s; 
-            text-transform: uppercase; 
-            letter-spacing: 1px;
-            flex: 1 1 auto; /* Grow to fill space on mobile */
-            min-width: 120px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            padding: 14px 20px; font-size: 14px; font-weight: bold; color: #111; 
+            background: #00d4ff; border: none; border-radius: 8px; cursor: pointer; 
+            flex: 1 1 auto; min-width: 120px; transition: 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
         button:active { transform: scale(0.98); }
         button:disabled { background: #333; color: #666; cursor: not-allowed; box-shadow: none; }
         
         input { 
-            padding: 14px; 
-            border-radius: 8px; 
-            border: 2px solid #333; 
-            background: #222; 
-            color: white; 
-            width: 100%; 
-            max-width: 200px;
-            text-align: center; 
-            font-weight: bold; 
-            font-size: 16px; /* Prevents iOS zoom */
+            padding: 14px; border-radius: 8px; border: 2px solid #333; background: #222; 
+            color: white; width: 100%; max-width: 200px; text-align: center; font-weight: bold; font-size: 16px; 
         }
         input:focus { border-color: #00d4ff; outline: none; }
 
-        /* AI TERMINAL */
+        /* --- 5. AI TERMINAL --- */
         #word-hint {
-            background: rgba(0, 20, 0, 0.95);
-            border-left: 4px solid #00ff88;
-            padding: 15px;
-            margin: 15px 0;
-            font-family: 'Courier New', monospace;
-            color: #00ff88;
-            width: 100%; max-width: 600px;
-            box-sizing: border-box;
-            font-size: 12px;
-            line-height: 1.4;
-            border-radius: 0 5px 5px 0;
-            text-align: left;
+            background: rgba(0, 20, 0, 0.95); border-left: 4px solid #00ff88; padding: 15px; margin: 15px 0; 
+            font-family: 'Courier New', monospace; color: #00ff88; width: 100%; max-width: 600px; 
+            box-sizing: border-box; font-size: 12px; line-height: 1.4; border-radius: 0 5px 5px 0; text-align: left;
         }
 
-        /* CHALLENGE UI */
+        /* --- 6. CHALLENGE MODE --- */
         #challenge-section { display: none; flex-direction: column; align-items: center; width: 100%; }
-        #challenge-ui { 
-            background: #222; 
-            padding: 20px; 
-            border-radius: 15px; 
-            border: 1px solid #444; 
-            width: 100%; 
-            max-width: 500px; 
-            box-sizing: border-box; 
-            position: relative; 
-        }
+        #challenge-ui { background: #222; padding: 20px; border-radius: 15px; border: 1px solid #444; width: 100%; max-width: 500px; box-sizing: border-box; }
         
         .ai-status { background: #111; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #333; }
-        .meter-bg { background: #333; width: 100%; height: 8px; border-radius: 4px; margin-top: 8px; overflow: hidden; }
         #ai-meter-bar { height: 100%; background: linear-gradient(90deg, #00d4ff, #00ff88); width: 0%; transition: width 0.2s; }
+        .meter-bg { background: #333; width: 100%; height: 8px; border-radius: 4px; margin-top: 8px; overflow: hidden; }
 
-        .feedback { margin-top: 15px; font-size: 1.2em; font-weight: bold; min-height: 1.5em; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .feedback { margin-top: 15px; font-size: 1.2em; font-weight: bold; min-height: 1.5em; }
         .hidden { display: none !important; }
-        
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
@@ -134,29 +73,27 @@
     
     <div id="lab-section" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
         <p>Record <b>4 words</b> to train the AI.</p>
-        
         <canvas id="liveCanvas"></canvas>
         <div id="word-hint">AI_SYSTEM: Initialize Microphone...</div>
 
         <div class="controls">
-            <button id="startBtn">1. Start Mic</button>
+            <button onclick="AudioSys.init()">1. Start Mic</button>
             <input type="text" id="wordInput" placeholder="Type Word...">
-            <button id="captureBtn" disabled>2. Capture</button>
+            <button id="captureBtn" onclick="Game.captureWord()" disabled>2. Capture</button>
         </div>
 
         <div id="training-gallery" style="width: 100%; max-width: 600px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 5px;">
                 <span style="color:#666; font-size:12px;">DATASET: <span id="count" style="color:white; font-weight:bold;">0</span>/4</span>
-                <button id="goToChallengeBtn" disabled style="background: #ff00d4; font-size:12px; padding:8px 16px; min-width: auto;">Challenge Mode →</button>
+                <button id="goToChallengeBtn" onclick="Game.switchMode('challenge')" disabled style="background: #ff00d4; font-size:12px; padding:8px 16px; min-width: auto;">Challenge Mode →</button>
             </div>
             <div class="gallery" id="gallery"></div>
         </div>
-        
-        <button id="resetLabBtn" style="background:transparent; border:1px solid #444; color:#666; font-size:11px; margin-top:20px; min-width: auto;">Reset Lab</button>
+        <button onclick="location.reload()" style="background:transparent; border:1px solid #444; color:#666; font-size:11px; margin-top:20px; min-width: auto;">Reset Lab</button>
     </div>
 
     <div id="challenge-section">
-        <button id="backToLabBtn" style="background: #333; color: white; margin-bottom: 20px; width: 100%; max-width: 500px;">← Back to Lab</button>
+        <button onclick="Game.switchMode('lab')" style="background: #333; color: white; margin-bottom: 20px; width: 100%; max-width: 500px;">← Back to Lab</button>
         
         <div id="challenge-ui">
             <h2 style="margin-top:0; color:#ff00d4; font-size: 1.5rem;">Mystery Pattern</h2>
@@ -172,289 +109,268 @@
             </div>
 
             <div id="challenge-hint" style="background:#222; border:1px dashed #555; padding:10px; margin:10px 0; font-size:12px; color:#aaa; display:none;"></div>
-
             <div id="options-container" class="controls"></div>
             <div id="feedback" class="feedback"></div>
-            <button id="nextBtn" class="hidden" style="background: #fff; width:100%;">Next Round →</button>
+            <button id="nextBtn" onclick="Game.startRound()" class="hidden" style="background: #fff; width:100%;">Next Round →</button>
         </div>
     </div>
 </div>
 
 <script>
-    // --- CONFIGURATION ---
-    const API_URL = 'https://voicerecogprototypegame.onrender.com/analyze-sound'; 
-    const API_PASSWORD = 'stem_explorer_2026';
-
-    // --- SETUP ---
-    const liveCanvas = document.getElementById('liveCanvas');
-    const liveCtx = liveCanvas.getContext('2d', { willReadFrequently: true });
-    const mysteryCanvas = document.getElementById('mysteryCanvas');
-    const mysteryCtx = mysteryCanvas.getContext('2d');
-    const gallery = document.getElementById('gallery');
-    
-    // Initial size (will be overridden by resize function)
-    liveCanvas.width = 600; liveCanvas.height = 300;
-    mysteryCanvas.width = 600; mysteryCanvas.height = 300;
-
-    let audioCtx, analyser, dataArray;
-    let library = []; 
-    let currentTarget = null; 
-    let isMicActive = false;
-
-    // --- RESPONSIVE RESIZER (Prevents Mobile Blurriness) ---
-    function resizeCanvas() {
-        const containerWidth = Math.min(600, window.innerWidth - 30); // 30px padding
-        
-        if (Math.abs(liveCanvas.width - containerWidth) > 10) {
-            liveCanvas.width = containerWidth;
-            liveCanvas.height = containerWidth * 0.5; // 2:1 Aspect Ratio
-            mysteryCanvas.width = containerWidth;
-            mysteryCanvas.height = containerWidth * 0.5;
-            
-            // Redraw mystery canvas if we are in challenge mode
-            if(currentTarget) {
-                mysteryCtx.putImageData(currentTarget.data, 0, 0); 
-                // Note: putImageData doesn't scale. For a perfect resize we'd need to store the raw freq data for targets too.
-                // For this prototype, we just clear it to avoid glitches.
-                mysteryCtx.clearRect(0,0,mysteryCanvas.width, mysteryCanvas.height);
-                // Ideally, you'd re-draw the target bars here using currentTarget.freq
-                drawStaticBars(mysteryCtx, currentTarget.freq, mysteryCanvas.width, mysteryCanvas.height);
-            }
-        }
-    }
-    window.addEventListener('resize', resizeCanvas);
-    
-    // Helper to draw static bars (for resizing logic)
-    function drawStaticBars(ctx, data, w, h) {
-        ctx.fillStyle = '#000'; ctx.fillRect(0,0,w,h);
-        const barWidth = w / data.length;
-        for (let i = 0; i < data.length; i++) {
-            const val = data[i];
-            const hue = 180 + (val * 0.8); 
-            ctx.fillStyle = `hsl(${hue}, 100%, ${val/2.5}%)`;
-            ctx.fillRect(i * barWidth, 0, barWidth, h); // Fill simplified static view
-        }
-    }
-
-    // --- AUDIO ENGINE ---
-    async function initAudio() {
-        if (!audioCtx) {
-            try {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                analyser = audioCtx.createAnalyser();
-                analyser.fftSize = 512;
-                analyser.smoothingTimeConstant = 0.85; 
-                
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                const source = audioCtx.createMediaStreamSource(stream);
-                source.connect(analyser);
-                
-                dataArray = new Uint8Array(analyser.frequencyBinCount);
-                isMicActive = true;
-                resizeCanvas(); // Ensure size is correct on start
-                draw();
-                
-                document.getElementById('word-hint').innerText = "AI_SYSTEM: Microphone Active.";
-            } catch (e) {
-                alert("Microphone Access Denied. Check Settings.");
-            }
-        }
-    }
-
-    function draw() {
-        if(!isMicActive) return;
-        requestAnimationFrame(draw);
-        analyser.getByteFrequencyData(dataArray);
-
-        // Waterfall Effect
-        const imgData = liveCtx.getImageData(0, 0, liveCanvas.width, liveCanvas.height - 2);
-        liveCtx.putImageData(imgData, 0, 2);
-
-        // Draw new line
-        const barWidth = liveCanvas.width / dataArray.length;
-        for (let i = 0; i < dataArray.length; i++) {
-            const val = dataArray[i];
-            const hue = 180 + (val * 0.8); 
-            liveCtx.fillStyle = `hsl(${hue}, 100%, ${val/2.5}%)`;
-            liveCtx.fillRect(i * barWidth, 0, barWidth, 2);
-        }
-
-        // Match Logic
-        if (currentTarget && document.getElementById('challenge-section').style.display === 'flex') {
-            compareLiveToTarget(dataArray, currentTarget.freq);
-        }
-    }
-
-    // --- CAPTURE LOGIC ---
-    document.getElementById('captureBtn').onclick = async function() {
-        const word = document.getElementById('wordInput').value.toUpperCase().trim();
-        if(!word) return alert("Type the word first!");
-        
-        // 1. Capture Data
-        const snap = liveCtx.getImageData(0, 0, liveCanvas.width, liveCanvas.height);
-        const freqSnapshot = new Uint8Array(dataArray); 
-        
-        // 2. UI Updates
-        document.getElementById('word-hint').innerText = `AI_SYSTEM: Analyzing "${word}"...`;
-        this.disabled = true;
-
-        // 3. Send to Backend
-        let aiAnalysis = "Offline Mode";
-        try {
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Custom-Password': API_PASSWORD },
-                body: JSON.stringify({ word: word, frequencies: Array.from(freqSnapshot).slice(0, 40) })
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                aiAnalysis = data.analysis;
-                document.getElementById('word-hint').innerText = "AI_RESULT: " + aiAnalysis;
-            } else { throw new Error("API Error"); }
-        } catch (error) {
-            console.error(error);
-            document.getElementById('word-hint').innerText = "AI_SYSTEM: Offline Mode Active.";
-        }
-
-        // 4. Save
-        library.push({ word: word, data: snap, freq: freqSnapshot, analysis: aiAnalysis });
-        
-        // 5. Add to Gallery (Visual Bars)
-        addToGallery(word, freqSnapshot);
-        
-        updateLibraryCount();
-        document.getElementById('wordInput').value = "";
-        this.disabled = false;
+    /* =========================================
+       1. CONFIGURATION & STATE
+       ========================================= */
+    const Config = {
+        API_URL: 'https://voicerecogprototypegame.onrender.com/analyze-sound',
+        API_PASSWORD: 'stem_explorer_2026',
+        MAX_ITEMS: 4
     };
 
-    // --- VISIBLE THUMBNAIL GENERATOR ---
-    function addToGallery(word, frequencyData) {
-        const container = document.createElement('div');
-        container.className = 'captured-item';
-        
-        const miniCanvas = document.createElement('canvas');
-        miniCanvas.width = 80; miniCanvas.height = 50;
-        const miniCtx = miniCanvas.getContext('2d');
-        
-        miniCtx.fillStyle = '#000'; miniCtx.fillRect(0, 0, 80, 50);
-        
-        const barWidth = 80 / frequencyData.length;
-        for(let i = 0; i < frequencyData.length; i++) {
-            const value = frequencyData[i];
-            const height = (value / 255) * 50;
-            const hue = 180 + (value * 0.8);
-            miniCtx.fillStyle = `hsl(${hue}, 100%, 50%)`;
-            miniCtx.fillRect(i * barWidth, 50 - height, barWidth + 1, height);
-        }
-        
-        container.appendChild(miniCanvas);
-        container.innerHTML += `<div>${word}</div>`;
-        gallery.appendChild(container);
-    }
+    const State = {
+        library: [],
+        currentTarget: null,
+        isMicActive: false,
+        audioCtx: null,
+        analyser: null,
+        dataArray: null
+    };
 
-    // --- IMPROVED MATCHING (Cosine Similarity) ---
-    function compareLiveToTarget(live, target) {
-        // Noise Gate
-        let liveVol = live.reduce((a,b)=>a+b, 0) / live.length;
-        if (liveVol < 5) { updateMeter(0); return; }
+    const DOM = {
+        liveCanvas: document.getElementById('liveCanvas'),
+        mysteryCanvas: document.getElementById('mysteryCanvas'),
+        gallery: document.getElementById('gallery'),
+        hint: document.getElementById('word-hint'),
+        input: document.getElementById('wordInput'),
+        captureBtn: document.getElementById('captureBtn'),
+        startBtn: document.querySelector('button[onclick="AudioSys.init()"]')
+    };
 
-        // Cosine Similarity
-        let dot = 0, magA = 0, magB = 0;
-        for (let i = 0; i < live.length; i++) {
-            dot += live[i] * target[i];
-            magA += live[i] * live[i];
-            magB += target[i] * target[i];
-        }
-        const magnitude = Math.sqrt(magA) * Math.sqrt(magB);
-        let similarity = magnitude === 0 ? 0 : dot / magnitude;
+    const liveCtx = DOM.liveCanvas.getContext('2d', { willReadFrequently: true });
+    const mysteryCtx = DOM.mysteryCanvas.getContext('2d');
 
-        // Scaling (Make it forgiving)
-        let percent = similarity > 0.65 ? (similarity - 0.65) * (100 / 0.35) : 0;
-        updateMeter(Math.floor(percent));
-    }
-
-    function updateMeter(percent) {
-        document.getElementById('ai-percent').innerText = percent;
-        document.getElementById('ai-meter-bar').style.width = percent + "%";
-        const text = document.getElementById('ai-match-text');
-        
-        if (percent > 80) { text.innerText = "MATCH CONFIRMED"; text.style.color = "#00ff88"; }
-        else if (percent > 40) { text.innerText = "DETECTING PATTERN..."; text.style.color = "#00d4ff"; }
-        else { text.innerText = "NO MATCH"; text.style.color = "#555"; }
-    }
-
-    // --- GAME LOGIC ---
-    function startRound() {
-        document.getElementById('feedback').innerText = "";
-        document.getElementById('nextBtn').classList.add('hidden');
-        document.getElementById('challenge-hint').style.display = 'none';
-        
-        const optionsContainer = document.getElementById('options-container');
-        optionsContainer.innerHTML = "";
-
-        // Pick Random Target
-        currentTarget = library[Math.floor(Math.random() * library.length)];
-        
-        // Draw Static Bars for Mystery Canvas (Better than putting image data which doesn't scale)
-        drawStaticBars(mysteryCtx, currentTarget.freq, mysteryCanvas.width, mysteryCanvas.height);
-
-        // Decoys
-        let decoys = library.filter(item => item.word !== currentTarget.word)
-                            .sort(() => 0.5 - Math.random()).slice(0, 2);
-        let choices = [currentTarget, ...decoys].sort(() => 0.5 - Math.random());
-
-        choices.forEach(choice => {
-            const btn = document.createElement('button');
-            btn.innerText = choice.word;
-            btn.style.background = "#333";
-            btn.onclick = () => {
-                document.querySelectorAll('#options-container button').forEach(b => b.disabled = true);
-                if(choice.word === currentTarget.word) {
-                    document.getElementById('feedback').innerText = "✓ CORRECT";
-                    document.getElementById('feedback').style.color = "#00ff88";
-                } else {
-                    document.getElementById('feedback').innerText = "✕ INCORRECT";
-                    document.getElementById('feedback').style.color = "#ff4444";
-                    document.getElementById('challenge-hint').style.display = 'block';
-                    document.getElementById('challenge-hint').innerText = `AI REPORT: ${currentTarget.analysis}`;
+    /* =========================================
+       2. VISUALS & RESPONSIVENESS
+       ========================================= */
+    const Visuals = {
+        resize: function() {
+            const containerWidth = Math.min(600, window.innerWidth - 30);
+            if (Math.abs(DOM.liveCanvas.width - containerWidth) > 10) {
+                DOM.liveCanvas.width = containerWidth;
+                DOM.liveCanvas.height = containerWidth * 0.5;
+                DOM.mysteryCanvas.width = containerWidth;
+                DOM.mysteryCanvas.height = containerWidth * 0.5;
+                
+                if(State.currentTarget) {
+                    Visuals.drawTargetPattern(mysteryCtx, State.currentTarget.data);
                 }
-                document.getElementById('nextBtn').classList.remove('hidden');
-            };
-            optionsContainer.appendChild(btn);
-        });
-    }
+            }
+        },
 
-    // --- UI HELPERS ---
-    document.getElementById('startBtn').onclick = function() { 
-        initAudio(); 
-        this.disabled = true; 
-        this.innerText = "MIC ON";
-        document.getElementById('captureBtn').disabled = false; 
-    };
-    document.getElementById('resetLabBtn').onclick = function() { location.reload(); };
-    
-    document.getElementById('goToChallengeBtn').onclick = function() { 
-        document.getElementById('lab-section').classList.add('hidden'); 
-        document.getElementById('challenge-section').style.display = 'flex'; 
-        // Resize canvas again to ensure it fits the new container layout
-        resizeCanvas();
-        startRound(); 
-    };
-    
-    document.getElementById('backToLabBtn').onclick = function() { 
-        document.getElementById('challenge-section').style.display = 'none'; 
-        document.getElementById('lab-section').classList.remove('hidden'); 
-        currentTarget = null; 
-    };
-    document.getElementById('nextBtn').onclick = startRound;
+        drawLoop: function() {
+            if(!State.isMicActive) return;
+            requestAnimationFrame(Visuals.drawLoop);
+            State.analyser.getByteFrequencyData(State.dataArray);
 
-    function updateLibraryCount() {
-        const count = library.length;
-        document.getElementById('count').innerText = count;
-        document.getElementById('goToChallengeBtn').disabled = count < 4;
-        if(count >= 4) document.getElementById('goToChallengeBtn').style.boxShadow = "0 0 15px #ff00d4";
-    }
+            const w = DOM.liveCanvas.width;
+            const h = DOM.liveCanvas.height;
+            const imgData = liveCtx.getImageData(0, 0, w, h - 2);
+            liveCtx.putImageData(imgData, 0, 2);
+
+            const barWidth = w / State.dataArray.length;
+            for (let i = 0; i < State.dataArray.length; i++) {
+                const val = State.dataArray[i];
+                const hue = 180 + (val * 0.8);
+                liveCtx.fillStyle = `hsl(${hue}, 100%, ${val/2.5}%)`;
+                liveCtx.fillRect(i * barWidth, 0, barWidth, 2);
+            }
+
+            if (State.currentTarget && document.getElementById('challenge-section').style.display === 'flex') {
+                Game.checkMatch(State.dataArray, State.currentTarget.freq);
+            }
+        },
+
+        // RESTORED: Draws the actual waterfall snapshot
+        drawTargetPattern: function(ctx, imgData) {
+            ctx.clearRect(0, 0, DOM.mysteryCanvas.width, DOM.mysteryCanvas.height);
+            // Put original high-res data. Since we captured at 600px, 
+            // it will be cropped on mobile but remain faithful to the visual.
+            ctx.putImageData(imgData, 0, 0);
+        },
+
+        createThumbnail: function(word, freqData) {
+            const div = document.createElement('div');
+            div.className = 'captured-item';
+            const cvs = document.createElement('canvas');
+            cvs.width = 80; cvs.height = 50;
+            const ctx = cvs.getContext('2d');
+            ctx.fillStyle = '#000'; ctx.fillRect(0,0,80,50);
+            const bw = 80 / freqData.length;
+            for(let i=0; i<freqData.length; i++) {
+                const h = (freqData[i]/255) * 50;
+                ctx.fillStyle = `hsl(${180 + freqData[i]*0.8}, 100%, 50%)`;
+                ctx.fillRect(i*bw, 50-h, bw+1, h);
+            }
+            div.appendChild(cvs);
+            div.innerHTML += `<div>${word}</div>`;
+            DOM.gallery.appendChild(div);
+        }
+    };
+
+    /* =========================================
+       3. AUDIO SYSTEM
+       ========================================= */
+    const AudioSys = {
+        init: async function() {
+            if (State.audioCtx) return;
+            try {
+                State.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                State.analyser = State.audioCtx.createAnalyser();
+                State.analyser.fftSize = 512;
+                State.analyser.smoothingTimeConstant = 0.85;
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const source = State.audioCtx.createMediaStreamSource(stream);
+                source.connect(State.analyser);
+                State.dataArray = new Uint8Array(State.analyser.frequencyBinCount);
+                State.isMicActive = true;
+                DOM.startBtn.disabled = true;
+                DOM.startBtn.innerText = "MIC ON";
+                DOM.captureBtn.disabled = false;
+                DOM.hint.innerText = "AI_SYSTEM: Microphone Active.";
+                Visuals.resize();
+                Visuals.drawLoop();
+            } catch (e) {
+                alert("Microphone Error: " + e.message);
+            }
+        }
+    };
+
+    /* =========================================
+       4. GAME LOGIC
+       ========================================= */
+    const Game = {
+        captureWord: async function() {
+            const word = DOM.input.value.toUpperCase().trim();
+            if(!word) return alert("Type a word first!");
+
+            // Capture the exact waterfall visual data
+            const freqSnap = new Uint8Array(State.dataArray);
+            const imgSnap = liveCtx.getImageData(0, 0, DOM.liveCanvas.width, DOM.liveCanvas.height);
+
+            DOM.captureBtn.disabled = true;
+            DOM.hint.innerText = `AI_SYSTEM: Analyzing "${word}"...`;
+
+            let analysis = "Offline Mode";
+            try {
+                const res = await fetch(Config.API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Custom-Password': Config.API_PASSWORD },
+                    body: JSON.stringify({ word: word, frequencies: Array.from(freqSnap).slice(0, 40) })
+                });
+                if(res.ok) {
+                    const data = await res.json();
+                    analysis = data.analysis;
+                }
+            } catch(e) { console.warn("API Error", e); }
+
+            State.library.push({ word, freq: freqSnap, data: imgSnap, analysis });
+            DOM.hint.innerText = `AI_RESULT: ${analysis}`;
+            Visuals.createThumbnail(word, freqSnap);
+            DOM.input.value = "";
+            DOM.captureBtn.disabled = false;
+            
+            const count = State.library.length;
+            document.getElementById('count').innerText = count;
+            const chalBtn = document.getElementById('goToChallengeBtn');
+            chalBtn.disabled = count < Config.MAX_ITEMS;
+            if(count >= Config.MAX_ITEMS) chalBtn.style.boxShadow = "0 0 15px #ff00d4";
+        },
+
+        switchMode: function(mode) {
+            if(mode === 'challenge') {
+                document.getElementById('lab-section').classList.add('hidden');
+                document.getElementById('challenge-section').style.display = 'flex';
+                Visuals.resize();
+                Game.startRound();
+            } else {
+                document.getElementById('challenge-section').style.display = 'none';
+                document.getElementById('lab-section').classList.remove('hidden');
+                State.currentTarget = null;
+            }
+        },
+
+        startRound: function() {
+            document.getElementById('feedback').innerText = "";
+            document.getElementById('nextBtn').classList.add('hidden');
+            document.getElementById('challenge-hint').style.display = 'none';
+            const container = document.getElementById('options-container');
+            container.innerHTML = "";
+
+            // Pick Target
+            State.currentTarget = State.library[Math.floor(Math.random() * State.library.length)];
+            
+            // Apply Fade Animation
+            DOM.mysteryCanvas.style.opacity = "0";
+            setTimeout(() => {
+                Visuals.drawTargetPattern(mysteryCtx, State.currentTarget.data);
+                DOM.mysteryCanvas.style.opacity = "1";
+            }, 300);
+
+            let decoys = State.library.filter(i => i.word !== State.currentTarget.word)
+                                    .sort(() => 0.5 - Math.random()).slice(0, 2);
+            let choices = [State.currentTarget, ...decoys].sort(() => 0.5 - Math.random());
+
+            choices.forEach(choice => {
+                const btn = document.createElement('button');
+                btn.innerText = choice.word;
+                btn.style.background = "#333";
+                btn.onclick = () => Game.handleGuess(choice, btn);
+                container.appendChild(btn);
+            });
+        },
+
+        handleGuess: function(choice, btn) {
+            const allBtns = document.querySelectorAll('#options-container button');
+            allBtns.forEach(b => b.disabled = true);
+
+            if(choice.word === State.currentTarget.word) {
+                document.getElementById('feedback').innerHTML = "<span style='color:#00ff88'>✓ CORRECT</span>";
+                btn.style.background = "#00ff88"; btn.style.color = "#000";
+            } else {
+                document.getElementById('feedback').innerHTML = "<span style='color:#ff4444'>✕ INCORRECT</span>";
+                btn.style.background = "#ff4444";
+                const hint = document.getElementById('challenge-hint');
+                hint.style.display = 'block';
+                hint.innerText = `AI REPORT: ${State.currentTarget.analysis}`;
+            }
+            document.getElementById('nextBtn').classList.remove('hidden');
+        },
+
+        checkMatch: function(live, target) {
+            let dot = 0, magA = 0, magB = 0, vol = 0;
+            for(let i=0; i<live.length; i++) {
+                dot += live[i] * target[i];
+                magA += live[i]**2;
+                magB += target[i]**2;
+                vol += live[i];
+            }
+            if(vol/live.length < 5) return Game.updateMeter(0);
+
+            const similarity = (magA && magB) ? dot / (Math.sqrt(magA) * Math.sqrt(magB)) : 0;
+            const percent = similarity > 0.65 ? (similarity - 0.65) * (100 / 0.35) : 0;
+            Game.updateMeter(Math.floor(percent));
+        },
+
+        updateMeter: function(pct) {
+            document.getElementById('ai-percent').innerText = pct;
+            document.getElementById('ai-meter-bar').style.width = pct + "%";
+            const txt = document.getElementById('ai-match-text');
+            if(pct > 80) { txt.innerText = "MATCH CONFIRMED"; txt.style.color = "#00ff88"; }
+            else if(pct > 40) { txt.innerText = "DETECTING PATTERN..."; txt.style.color = "#00d4ff"; }
+            else { txt.innerText = "NO MATCH"; txt.style.color = "#555"; }
+        }
+    };
+
+    window.addEventListener('resize', Visuals.resize);
 </script>
 
 </body>
