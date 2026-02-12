@@ -11,7 +11,7 @@ CORS(app) # Allow all origins for now
 # 2. SETUP SECURITY & API
 MY_SECRET_PASSWORD = "stem_explorer_2026"
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-pro')
 
 # 3. ROUTES
 @app.route('/', methods=['GET'])
