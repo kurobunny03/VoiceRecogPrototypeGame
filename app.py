@@ -7,6 +7,10 @@ app = Flask(__name__)
 # Allow CORS for all domains (simplest for your setup)
 CORS(app)
 
+@app.route('/')
+def health_check():
+    return "STEM Lab is Online!", 200
+
 # SECURITY: The password must match what is in your index.html
 MY_SECRET_PASSWORD = "stem_explorer_2026"
 
