@@ -7,18 +7,16 @@ from openai import OpenAI
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
+limiter = Limiter(get_remote_address, app=app, default_limits=["60 per minute"])
 
 app = Flask(__name__)
 
 CORS(app, resources={
     r"/analyze-sound": {"origins": [
-        "https://voicerecogprototypegame.onrender.com",
+        "https://YOUR-FRONTEND-DOMAIN.com",
         "http://localhost:5500"
     ]}
-}, allow_headers=["Content-Type", "X-Custom-Password"])
-
-
-limiter = Limiter(get_remote_address, app=app, default_limits=["60 per minute"])
+})
 
 MY_SECRET_PASSWORD = os.environ.get("MY_SECRET_PASSWORD")
 
