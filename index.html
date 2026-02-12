@@ -237,8 +237,7 @@
         });
         
         // 5. Update Gallery (Pass pure frequency data for better thumbnails)
-        addToGallery(word, snap);
-
+        addToGallery(word, null, freqSnapshot);
         
         updateLibraryCount();
         document.getElementById('wordInput').value = "";
@@ -246,36 +245,34 @@
     };
 
     // --- UPDATED THUMBNAIL GENERATOR (Fixes blank images) ---
-
-    // --- THUMBNAIL GENERATOR: uses the *actual captured graph* (ImageData) ---
-    function addToGallery(word, imageData) {
+    function addToGallery(word, sourceCanvas, frequencyData) {
         const container = document.createElement('div');
         container.className = 'captured-item';
-
-        // Offscreen canvas holds the full-resolution captured frame
-        const off = document.createElement('canvas');
-        off.width = imageData.width;
-        off.height = imageData.height;
-        const offCtx = off.getContext('2d', { willReadFrequently: true });
-        offCtx.putImageData(imageData, 0, 0);
-
-        // Mini canvas is the visible thumbnail
+        
         const miniCanvas = document.createElement('canvas');
-        miniCanvas.width = 100;
+        miniCanvas.width = 100; 
         miniCanvas.height = 60;
         const miniCtx = miniCanvas.getContext('2d');
-
-        // Draw scaled thumbnail (this is what you want — real preview)
-        miniCtx.imageSmoothingEnabled = true;
-        miniCtx.clearRect(0, 0, miniCanvas.width, miniCanvas.height);
-        miniCtx.drawImage(off, 0, 0, miniCanvas.width, miniCanvas.height);
-
-        // Label (DON'T use innerHTML)
-        const label = document.createElement('div');
-        label.textContent = word;
-
+        
+        // Fill background
+        miniCtx.fillStyle = '#000';
+        miniCtx.fillRect(0, 0, 100, 60);
+        
+        // Draw Bars Manually (Ensures visibility)
+        const barWidth = 100 / frequencyData.length;
+        
+        for(let i = 0; i < frequencyData.length; i++) {
+            const value = frequencyData[i];
+            const percent = value / 255;
+            const height = 60 * percent;
+            
+            const hue = 180 + (value * 0.8);
+            miniCtx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+            miniCtx.fillRect(i * barWidth, 60 - height, barWidth + 1, height);
+        }
+        
         container.appendChild(miniCanvas);
-        container.appendChild(label);
+        container.innerHTML += `<div>${word}</div>`;
         gallery.appendChild(container);
     }
 
