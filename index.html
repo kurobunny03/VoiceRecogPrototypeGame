@@ -582,7 +582,7 @@
       #container { padding: 14px; }
       .header { margin-bottom: 18px; }
       .header p { font-size: 0.95rem; }
-      .canvas-container { height: 150px !important; }
+      .canvas-container { max-width: 100%; margin: 12px 0; }
       canvas { border-radius: 10px; }
 
       .controls { flex-direction: column; gap: 10px; max-width: 100%; }
@@ -606,7 +606,7 @@
     }
 
     @media (max-width: 420px) {
-      .canvas-container { height: 120px !important; }
+      .canvas-container { height: 130px; }
       #liveCanvas, #mysteryCanvas { height: 130px; }
 
       .canvas-label {
@@ -640,32 +640,6 @@
       font-size: 0.85rem;
     }
     .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
-    
-    /* Enhanced mobile touch targets */
-    @media (max-width: 768px) {
-      /* Bigger touch target for talk button */
-      #talkBtn {
-        padding: 18px 24px !important;
-        font-size: 1.05rem !important;
-        min-height: 56px;
-      }
-
-      /* Better button spacing */
-      .controls button {
-        min-height: 50px;
-      }
-
-      /* Readable text on mobile */
-      .dialog-line-content {
-        font-size: 0.95rem;
-        line-height: 1.5;
-      }
-
-      /* Prevent text zoom on input focus (iOS) */
-      input {
-        font-size: 16px !important;
-      }
-    }
   </style>
 </head>
 
@@ -781,9 +755,6 @@
             <div class="dialog-line">
               <div class="dialog-line-label">AI Response:</div>
               <div class="dialog-line-content" id="aiReply">—</div>
-              <button id="replayTtsBtn" class="hidden" style="margin-top:8px; padding:8px 16px; font-size:0.85rem; background:#444;">
-                🔊 Replay Audio
-              </button>
             </div>
             <div class="dialog-line">
               <div class="dialog-line-label">Next Question:</div>
@@ -807,8 +778,8 @@
     // ============================================
     // CONFIGURATION
     // ============================================
-    const API_URL = "https://voicerecogprototypegame-devtest.onrender.com/analyze-sound";
-    const DIALOG_URL = "https://voicerecogprototypegame-devtest.onrender.com/dialog";
+    const API_URL = "https://voicerecogprototypegame.onrender.com/analyze-sound";
+    const DIALOG_URL = "https://voicerecogprototypegame.onrender.com/dialog";
 
     // ============================================
     // STATE
@@ -837,10 +808,7 @@
 
       // Audio unlock (iOS)
       ttsUnlocked: false,
-      unlockCtx: null,
-
-      lastTtsUrl: null,    // ADD
-      lastTtsData: null    // ADD
+      unlockCtx: null
     };
 
     // ============================================
@@ -1352,46 +1320,29 @@
       return "";
     }
 
-  async function unlockAudioForiOS() {
-    if (state.ttsUnlocked) return;
-    
-    console.log("🔓 Attempting to unlock audio for mobile...");
+    async function unlockAudioForiOS() {
+      if (state.ttsUnlocked) return;
 
-    try {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) {
-        state.ttsUnlocked = true;
-        console.log("✓ No AudioContext needed (desktop browser)");
-        return;
-      }
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) { state.ttsUnlocked = true; return; }
 
-      if (!state.unlockCtx) {
-        state.unlockCtx = new AC();
-      }
-
-      if (state.unlockCtx.state === 'suspended') {
+        state.unlockCtx = state.unlockCtx || new AC();
         await state.unlockCtx.resume();
-        console.log("✓ AudioContext resumed");
+
+        // Play a tiny silent buffer (classic iOS unlock)
+        const buf = state.unlockCtx.createBuffer(1, 1, 22050);
+        const src = state.unlockCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(state.unlockCtx.destination);
+        src.start(0);
+
+        state.ttsUnlocked = true;
+      } catch (e) {
+        // If it fails, we still keep going; worst case audio.play() gets blocked
+        state.ttsUnlocked = true;
       }
-
-      // Play silent buffer (iOS unlock trick)
-      const buffer = state.unlockCtx.createBuffer(1, 1, 22050);
-      const source = state.unlockCtx.createBufferSource();
-      source.buffer = buffer;
-      source.connect(state.unlockCtx.destination);
-      source.start(0);
-
-      // Also play silent HTML5 audio
-      const silentAudio = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAADhADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwP////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAA4QfxZS8AAAAAAD/+xDEAAADSAAAAAAAAABLAAAAAExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVQ==');
-      await silentAudio.play().catch(() => {});
-
-      state.ttsUnlocked = true;
-      console.log("✓ Audio unlocked successfully!");
-    } catch (e) {
-      console.warn("⚠️ Audio unlock warning:", e.message);
-      state.ttsUnlocked = true; // Continue anyway
     }
-  }
 
     async function startRecording() {
       if (!state.currentTarget) {
@@ -1510,62 +1461,27 @@
 
         // TTS
         if (data.ttsAudioBase64 && data.ttsMime) {
-          console.log("🔊 Preparing TTS audio...");
-          
           const bytes = Uint8Array.from(atob(data.ttsAudioBase64), c => c.charCodeAt(0));
           const audioBlob = new Blob([bytes], { type: data.ttsMime });
           const url = URL.createObjectURL(audioBlob);
 
-          // Store for replay
-          state.lastTtsData = { blob: audioBlob, mime: data.ttsMime };
-
-          // Show replay button
-          const replayBtn = document.getElementById('replayTtsBtn');
-          if (replayBtn) {
-            replayBtn.classList.remove('hidden');
-            replayBtn.onclick = () => playStoredTts();
-          }
-
           const audio = new Audio(url);
-          audio.playsInline = true;
+          audio.playsInline = true;   // iOS
           audio.preload = "auto";
-          audio.volume = 1.0;
 
           try {
             await audio.play();
-            console.log("✓ TTS audio playing!");
           } catch (e) {
-            console.warn("⚠️ TTS autoplay blocked:", e.message);
-            console.log("💡 User can click 'Replay Audio' button");
-            
-            // Visual indicator
-            const aiReplyEl = document.getElementById('aiReply');
-            if (aiReplyEl) {
-              aiReplyEl.style.borderLeft = "3px solid #00ff88";
-              aiReplyEl.title = "Audio ready - click Replay button to hear";
-            }
-            
-            // Try again after short delay
-            setTimeout(async () => {
-              try {
-                await audio.play();
-                console.log("✓ TTS playing (retry succeeded)");
-              } catch (e2) {
-                // Will need manual replay
-              }
-            }, 150);
+            console.warn("TTS play blocked/failed:", e);
+            // Useful hint for iOS: if it still blocks, user gesture unlock is required
+            // (we try to unlock on pointerdown already)
+          } finally {
+            audio.onended = () => URL.revokeObjectURL(url);
+            // Also revoke if it errors
+            audio.onerror = () => URL.revokeObjectURL(url);
           }
-
-          audio.onended = () => {
-            URL.revokeObjectURL(url);
-            console.log("✓ TTS playback complete");
-          };
-          
-          audio.onerror = (e) => {
-            console.error("❌ TTS error:", e);
-            URL.revokeObjectURL(url);
-          };
         }
+
         updateStats();
       } catch (error) {
         console.error('Dialog error:', error);
@@ -1576,54 +1492,6 @@
       }
     }
 
-      // ============================================
-  // TTS REPLAY (for mobile when autoplay blocked)
-  // ============================================
-  async function playStoredTts() {
-    if (!state.lastTtsData) {
-      console.warn("No TTS audio stored");
-      alert("No audio available to replay");
-      return;
-    }
-
-    console.log("🔊 Replaying TTS audio...");
-
-    const url = URL.createObjectURL(state.lastTtsData.blob);
-    const audio = new Audio(url);
-    audio.playsInline = true;
-    audio.volume = 1.0;
-
-    const replayBtn = document.getElementById('replayTtsBtn');
-    if (replayBtn) {
-      replayBtn.textContent = "🔊 Playing...";
-      replayBtn.disabled = true;
-    }
-
-    try {
-      await audio.play();
-      console.log("✓ Replay successful!");
-    } catch (e) {
-      console.error("❌ Replay failed:", e);
-      alert("Audio playback blocked. Check your device volume and audio permissions.");
-    }
-
-    audio.onended = () => {
-      URL.revokeObjectURL(url);
-      if (replayBtn) {
-        replayBtn.textContent = "🔊 Replay Audio";
-        replayBtn.disabled = false;
-      }
-      console.log("✓ Replay complete");
-    };
-    
-    audio.onerror = () => {
-      URL.revokeObjectURL(url);
-      if (replayBtn) {
-        replayBtn.textContent = "🔊 Replay Audio";
-        replayBtn.disabled = false;
-      }
-    };
-  }
     // ============================================
     // UI HELPERS
     // ============================================
