@@ -990,57 +990,55 @@
     function draw() {
       if (!state.isMicActive) return;
       requestAnimationFrame(draw);
-      
+
       state.analyser.getByteFrequencyData(state.dataArray);
 
-      // Scroll effect
+      // DPR-safe sizes (use buffer size, not CSS size)
       const dpr = window.devicePixelRatio || 1;
       const scroll = Math.max(1, Math.round(2 * dpr));
       const w = elements.liveCanvas.width;
       const h = elements.liveCanvas.height;
 
-      const imgData = liveCtx.getImageData(0, 0, w, h - scroll);
-      liveCtx.putImageData(imgData, 0, scroll);
+      // Scroll old image down by `scroll` pixels
+      if (h > scroll) {
+        const imgData = liveCtx.getImageData(0, 0, w, h - scroll);
+        liveCtx.putImageData(imgData, 0, scroll);
+      }
 
-      const binsToShow = 80;
+      // Spectrogram row settings
+      const binsToShow = 80;     // try 60–120
+      const noiseFloor = 18;     // higher = darker background
+      const gamma = 1.6;         // higher = more contrast
       const barWidth = w / binsToShow;
 
-      liveCtx.fillRect(i * barWidth, 0, barWidth, scroll);
-
-
+      // Draw the newest row at the top
       for (let i = 0; i < binsToShow; i++) {
         const val = state.dataArray[i];
 
-        // 0..1 after noise floor
+        // normalize 0..1 after noise floor
         let x = (val - noiseFloor) / (255 - noiseFloor);
         if (x < 0) x = 0;
+        if (x > 1) x = 1;
 
-        // contrast curve (more like real spectrogram intensity)
+        // contrast curve
         x = Math.pow(x, gamma);
 
-        const p = Math.floor(x * 255);
-
-        // Scientific blue->cyan->yellow colormap
+        // blue -> cyan -> yellow colormap
         let r = 0, g = 0, b = 0;
-
         if (x < 0.5) {
-          // black -> blue -> cyan
-          const t = x / 0.5;
+          const t = x / 0.5;        // 0..1
           r = 0;
           g = Math.floor(255 * t);
           b = Math.floor(180 + 75 * t);
         } else {
-          // cyan -> yellow
-          const t = (x - 0.5) / 0.5;
+          const t = (x - 0.5) / 0.5; // 0..1
           r = Math.floor(255 * t);
           g = 255;
           b = Math.floor(255 * (1 - t));
         }
 
         liveCtx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-
-
-        liveCtx.fillRect(i * barWidth, 0, barWidth, 2);
+        liveCtx.fillRect(i * barWidth, 0, Math.ceil(barWidth), scroll);
       }
 
       // Compare with target in challenge mode
@@ -1048,6 +1046,7 @@
         compareLiveToTarget(state.dataArray, state.currentTarget.freq);
       }
     }
+
 
     // ============================================
     // WORD CAPTURE
