@@ -1113,7 +1113,7 @@
         timestamp: new Date().toLocaleTimeString()
       });
 
-      addToGallery(word, snap, state.library.length - 1);
+      addToGallery(word, snapCanvas, state.library.length - 1);
       updateProgress();
       
       elements.wordInput.value = "";
@@ -1129,59 +1129,49 @@
     // ============================================
     // GALLERY MANAGEMENT
     // ============================================
-    function addToGallery(word, imageData, index) {
-      const container = document.createElement('div');
-      container.className = 'captured-item';
-      container.setAttribute('data-index', index);
+    function addToGallery(word, snapCanvas, index) {
+    const container = document.createElement('div');
+    container.className = 'captured-item';
+    container.setAttribute('data-index', index);
 
-      // Delete button
-      const del = document.createElement('button');
-      del.className = 'delete-btn';
-      del.type = 'button';
-      del.textContent = '×';
-      del.title = 'Delete';
-      del.addEventListener('click', (e) => {
-        e.stopPropagation();
-        deleteCapture(Number(container.getAttribute('data-index')));
-      });
-      container.appendChild(del);
+    const del = document.createElement('button');
+    del.className = 'delete-btn';
+    del.type = 'button';
+    del.textContent = '×';
+    del.title = 'Delete';
+    del.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteCapture(Number(container.getAttribute('data-index')));
+    });
+    container.appendChild(del);
 
-      // Create offscreen canvas for scaling
-      const off = document.createElement('canvas');
-      off.width = imageData.width;
-      off.height = imageData.height;
-      const offCtx = off.getContext('2d', { willReadFrequently: true });
-      offCtx.putImageData(imageData, 0, 0);
+    // Create thumbnail
+    const miniCanvas = document.createElement('canvas');
+    miniCanvas.width = 140;
+    miniCanvas.height = 70;
+    const miniCtx = miniCanvas.getContext('2d');
+    miniCtx.imageSmoothingEnabled = true;
+    miniCtx.clearRect(0, 0, miniCanvas.width, miniCanvas.height);
+    miniCtx.drawImage(snapCanvas, 0, 0, miniCanvas.width, miniCanvas.height);
 
-      // Create thumbnail
-      const miniCanvas = document.createElement('canvas');
-      miniCanvas.width = 140;
-      miniCanvas.height = 70;
-      const miniCtx = miniCanvas.getContext('2d');
-      miniCtx.imageSmoothingEnabled = true;
-      miniCtx.clearRect(0, 0, miniCanvas.width, miniCanvas.height);
-      miniCtx.drawImage(off, 0, 0, miniCanvas.width, miniCanvas.height);
+    const wordLabel = document.createElement('div');
+    wordLabel.className = 'word-label';
+    wordLabel.textContent = word;
 
-      const wordLabel = document.createElement('div');
-      wordLabel.className = 'word-label';
-      wordLabel.textContent = word;
+    const timestamp = document.createElement('div');
+    timestamp.className = 'timestamp';
+    timestamp.textContent = state.library[index].timestamp;
 
-      const timestamp = document.createElement('div');
-      timestamp.className = 'timestamp';
-      timestamp.textContent = state.library[index].timestamp;
+    container.appendChild(miniCanvas);
+    container.appendChild(wordLabel);
+    container.appendChild(timestamp);
 
-      container.appendChild(miniCanvas);
-      container.appendChild(wordLabel);
-      container.appendChild(timestamp);
-      
-      // Click to view details
-      container.addEventListener('click', () => {
-        showWordDetails(Number(container.getAttribute('data-index')));
-      });
+    container.addEventListener('click', () => {
+      showWordDetails(Number(container.getAttribute('data-index')));
+    });
 
-
-      elements.gallery.appendChild(container);
-    }
+    elements.gallery.appendChild(container);
+  }
 
     function showWordDetails(index) {
       const item = state.library[index];
