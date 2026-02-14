@@ -1588,25 +1588,25 @@
       }
     }
     // Test if audio actually works
-    async function testAudioPlayback() {
-      console.log("🧪 Testing audio playback...");
+    //async function testAudioPlayback() {
+    //  console.log("🧪 Testing audio playback...");
       
-      try {
-        const silentMp3 = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAADhADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwP////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAA4QfxZS8AAAAAAD/+xDEAAADSAAAAAAAAABLAAAAAExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVQ==';
+    //  try {
+     //   const silentMp3 = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAADhADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwP////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAA4QfxZS8AAAAAAD/+xDEAAADSAAAAAAAAABLAAAAAExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVQ==';
         
-        const testAudio = new Audio(silentMp3);
-        testAudio.volume = 0.5;
-        testAudio.playsInline = true;
+     //   const testAudio = new Audio(silentMp3);
+     //   testAudio.volume = 0.5;
+     //   testAudio.playsInline = true;
         
-        await testAudio.play();
-        console.log("✅ Audio test PASSED - playback works!");
-        return true;
-      } catch (e) {
-        console.error("❌ Audio test FAILED:", e.message);
-        alert("⚠️ Audio blocked by browser. Please:\n1. Check device is not in silent mode\n2. Check browser audio permissions\n3. Try with headphones connected");
-        return false;
-      }
-    }
+     //   await testAudio.play();
+     //   console.log("✅ Audio test PASSED - playback works!");
+    //    return true;
+    //  } catch (e) {
+    //    console.error("❌ Audio test FAILED:", e.message);
+    //    alert("⚠️ Audio blocked by browser. Please:\n1. Check device is not in silent mode\n2. Check browser audio permissions\n3. Try with headphones connected");
+    //    return false;
+    //  }
+    //}
     async function startRecording() {
       if (!state.currentTarget) {
         elements.aiReply.textContent = "Enter Challenge Mode first to use the AI quiz 🙂";
@@ -2107,10 +2107,10 @@
         await unlockAudioForiOS();
         
         // Test if it actually worked
-        const testPassed = await testAudioPlayback();
-        if (!testPassed) {
-          console.error("Audio test failed - TTS may not work");
-        }
+        //const testPassed = await testAudioPlayback();
+        //if (!testPassed) {
+       //   console.error("Audio test failed - TTS may not work");
+       // }
       }
 
       if (isRecordingHold) return;
