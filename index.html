@@ -997,7 +997,9 @@
     };
 
     const liveCtx = elements.liveCanvas.getContext('2d', { willReadFrequently: true });
+    liveCtx.imageSmoothingEnabled = true;
     const mysteryCtx = elements.mysteryCanvas.getContext('2d');
+    mysteryCtx.imageSmoothingEnabled = true;
 
     function fitCanvas(canvas, ctx) {
       const dpr = window.devicePixelRatio || 1;
@@ -1033,7 +1035,7 @@
 
         state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         state.analyser = state.audioCtx.createAnalyser();
-        state.analyser.fftSize = 512;
+        state.analyser.fftSize = 1024;
         state.analyser.smoothingTimeConstant = 0.6;
 
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -1063,27 +1065,57 @@
       if (!state.isMicActive) return;
       requestAnimationFrame(draw);
 
+      if (!state.analyser || !state.dataArray) return;
       state.analyser.getByteFrequencyData(state.dataArray);
 
+      const canvas = elements.liveCanvas;
+      const ctx = liveCtx;
+
       const dpr = window.devicePixelRatio || 1;
-      const cssW = elements.liveCanvas.width / dpr;
-      const cssH = elements.liveCanvas.height / dpr;
 
-      const scroll = 2; // CSS px
+      // Backing buffer (real pixel) dimensions
+      const bufW = canvas.width;
+      const bufH = canvas.height;
 
-      // Scroll down in CSS pixel space using drawImage (DPR-safe)
-      if (cssH > scroll) {
-        liveCtx.drawImage(
-          elements.liveCanvas,
-          0, 0, cssW, cssH - scroll,
-          0, scroll, cssW, cssH - scroll
+      // CSS pixel dimensions (what you think of as "screen size")
+      const cssW = bufW / dpr;
+      const cssH = bufH / dpr;
+
+      // Thin scanline on mobile
+      const scrollCss = (cssH <= 170) ? 1 : 2;
+      const scrollPx = Math.max(1, Math.round(scrollCss * dpr)); // convert to buffer pixels
+
+      // --- Waterfall scroll (IMPORTANT: source rect uses BUFFER PIXELS) ---
+      if (bufH > scrollPx) {
+        // Copy the whole canvas down by scrollPx
+        ctx.save();
+
+        // Temporarily reset transform so drawImage uses buffer coords cleanly
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+        ctx.drawImage(
+          canvas,
+          0, 0, bufW, bufH - scrollPx,      // ✅ source in buffer pixels
+          0, scrollPx, bufW, bufH - scrollPx // ✅ dest in buffer pixels
         );
+
+        ctx.restore();
       }
 
-      const binsToShow = 80;
+      // --- Draw the new top scanline in CSS space (your fitCanvas transform expects CSS coords) ---
+      // Decide how many bins to draw (avoid chunky columns on small screens)
+      const maxBins = state.dataArray.length;
+
+      // Aim for ~1 column every 2 CSS pixels, clamped
+      const binsToShow = Math.min(
+        maxBins,
+        Math.max(120, Math.floor(cssW / 2))
+      );
+
+      const barWidth = cssW / binsToShow;
+
       const noiseFloor = 18;
       const gamma = 1.6;
-      const barWidth = cssW / binsToShow;
 
       for (let i = 0; i < binsToShow; i++) {
         const val = state.dataArray[i];
@@ -1105,14 +1137,19 @@
           b = Math.floor(255 * (1 - t));
         }
 
-        liveCtx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-        liveCtx.fillRect(i * barWidth, 0, Math.ceil(barWidth), scroll);
+        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+
+        // Draw at the top; height is scrollCss in CSS pixels
+        const xPos = i * barWidth;
+        const w = Math.max(1, Math.ceil(barWidth));
+        ctx.fillRect(xPos, 0, w, scrollCss);
       }
 
-      if (state.currentTarget && elements.challengeSection.style.display === 'flex') {
+      if (state.currentTarget && elements.challengeSection.style.display === "flex") {
         compareLiveToTarget(state.dataArray, state.currentTarget.freq);
       }
     }
+
 
     // ============================================
     // WORD CAPTURE
