@@ -577,49 +577,189 @@
       box-shadow: 0 0 10px currentColor;
     }
 
-    @media (max-width: 768px) {
-      #liveCanvas, #mysteryCanvas { height: 150px; }
-      #container { padding: 14px; }
-      .header { margin-bottom: 18px; }
-      .header p { font-size: 0.95rem; }
-      .canvas-container { max-width: 100%; margin: 12px 0; }
-      canvas { border-radius: 10px; }
-
-      .controls { flex-direction: column; gap: 10px; max-width: 100%; }
-      input, button { width: 100%; }
-
-      button { padding: 14px 16px; font-size: 0.95rem; }
-      input { min-width: 0; padding: 14px 16px; font-size: 1rem; }
-
-      .gallery {
-        max-width: 100%;
-        padding: 14px;
-        gap: 10px;
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-      }
-
-      .captured-item { padding: 10px; }
-      .captured-item canvas { height: 64px; }
-
-      .progress-section { max-width: 100%; }
-      .stats-bar { gap: 10px; padding: 12px; }
+/* ============================================ */
+/* MOBILE & RESPONSIVE - COMPLETE */
+/* ============================================ */
+  @media (max-width: 768px) {
+    /* Smaller canvas for mobile */
+    .canvas-container {
+      height: 150px !important;
+      max-width: 100%;
+      margin: 15px 0;
+    }
+    
+    #liveCanvas, #mysteryCanvas {
+      height: 150px;
     }
 
-    @media (max-width: 420px) {
-      .canvas-container { height: 130px; }
-      #liveCanvas, #mysteryCanvas { height: 130px; }
-
-      .canvas-label {
-        top: 8px; left: 10px;
-        padding: 4px 10px;
-        font-size: 0.8rem;
-      }
-
-      .ai-feedback { padding: 14px; }
-      .stat-value { font-size: 1.4rem; }
-      .stat-label { font-size: 0.75rem; }
-      .delete-btn { width: 26px; height: 26px; line-height: 24px; }
+    #container {
+      padding: 12px;
     }
+
+    .header {
+      margin-bottom: 15px;
+    }
+
+    .header h1 {
+      font-size: clamp(1.5rem, 4vw, 2rem);
+    }
+
+    .header p {
+      font-size: 0.9rem;
+    }
+
+    /* AI feedback more readable */
+    .ai-feedback {
+      padding: 15px;
+      font-size: 0.85rem;
+      margin: 15px 0;
+    }
+
+    /* Button sizing */
+    .controls {
+      flex-direction: column;
+      gap: 10px;
+      max-width: 100%;
+    }
+
+    input, button {
+      width: 100%;
+      padding: 14px 16px;
+    }
+
+    button {
+      font-size: 0.95rem;
+      min-height: 50px;
+    }
+
+    /* Talk button - bigger touch target */
+    #talkBtn {
+      padding: 18px 24px !important;
+      font-size: 1.05rem !important;
+      min-height: 56px;
+    }
+
+    /* Prevent iOS zoom on input focus */
+    input {
+      font-size: 16px !important;
+    }
+
+    /* Gallery */
+    .gallery {
+      max-width: 100%;
+      padding: 15px;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    }
+
+    .captured-item {
+      padding: 8px;
+    }
+
+    .captured-item canvas {
+      height: 60px;
+    }
+
+    /* Stats bar */
+    .stats-bar {
+      gap: 10px;
+      padding: 10px;
+      flex-direction: row;
+      flex-wrap: wrap;
+    }
+
+    .stat-item {
+      padding: 8px 15px;
+      min-width: 80px;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+    }
+
+    /* Progress section */
+    .progress-section {
+      max-width: 100%;
+    }
+
+    /* Challenge mode */
+    #challenge-ui {
+      padding: 20px;
+    }
+
+    .challenge-header h2 {
+      font-size: 1.6rem;
+    }
+
+    /* Dialog panel */
+    .dialog-panel {
+      padding: 15px;
+    }
+
+    .dialog-header {
+      flex-direction: column;
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .dialog-line-content {
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    /* Options */
+    #options-container {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    #options-container button {
+      padding: 18px;
+      font-size: 1.05rem;
+    }
+  }
+
+  /* Very small screens */
+  @media (max-width: 420px) {
+    .canvas-container {
+      height: 120px !important;
+    }
+
+    #liveCanvas, #mysteryCanvas {
+      height: 120px;
+    }
+
+    .canvas-label {
+      top: 6px;
+      left: 8px;
+      padding: 4px 8px;
+      font-size: 0.75rem;
+    }
+
+    .ai-feedback {
+      padding: 12px;
+      font-size: 0.8rem;
+    }
+
+    .stat-value {
+      font-size: 1.3rem;
+    }
+
+    .delete-btn {
+      width: 24px;
+      height: 24px;
+      line-height: 22px;
+    }
+
+    .challenge-header h2 {
+      font-size: 1.4rem;
+    }
+
+    .feedback {
+      font-size: 1.1rem;
+      padding: 12px;
+    }
+  }
 
     .tooltip { position: relative; display: inline-block; }
     .tooltip .tooltiptext {
@@ -752,10 +892,13 @@
               <div class="dialog-line-label">You said:</div>
               <div class="dialog-line-content" id="studentTranscript">—</div>
             </div>
-            <div class="dialog-line">
-              <div class="dialog-line-label">AI Response:</div>
-              <div class="dialog-line-content" id="aiReply">—</div>
-            </div>
+          <div class="dialog-line">
+            <div class="dialog-line-label">AI Response:</div>
+            <div class="dialog-line-content" id="aiReply">—</div>
+            <button id="replayTtsBtn" class="hidden" style="margin-top:8px; padding:8px 16px; font-size:0.85rem; background:linear-gradient(135deg, #444, #333); border-radius:6px;">
+              🔊 Replay Audio
+            </button>
+          </div>
             <div class="dialog-line">
               <div class="dialog-line-label">Next Question:</div>
               <div class="dialog-line-content" id="nextQ">Answer questions by voice to earn points 🎯</div>
@@ -784,32 +927,36 @@
     // ============================================
     // STATE
     // ============================================
-    const state = {
-      audioCtx: null,
-      analyser: null,
-      dataArray: null,
+  const state = {
+    audioCtx: null,
+    analyser: null,
+    dataArray: null,
 
-      library: [],
-      currentTarget: null,
+    library: [],
+    currentTarget: null,
 
-      isMicActive: false,
+    isMicActive: false,
 
-      score: 0,
-      totalRounds: 0,
+    score: 0,
+    totalRounds: 0,
 
-      dialogHistory: [],
-      difficulty: 1,
-      points: 0,
+    dialogHistory: [],
+    difficulty: 1,
+    points: 0,
 
-      // Recorder
-      recordingStream: null,
-      mediaRecorder: null,
-      audioChunks: [],
+    // Recorder
+    recordingStream: null,
+    mediaRecorder: null,
+    audioChunks: [],
 
-      // Audio unlock (iOS)
-      ttsUnlocked: false,
-      unlockCtx: null
-    };
+    // Audio unlock (iOS)
+    ttsUnlocked: false,
+    unlockCtx: null,
+    
+    // TTS replay (NEW)
+    lastTtsUrl: null,
+    lastTtsData: null
+  };
 
     // ============================================
     // DOM
@@ -1036,6 +1183,7 @@
       elements.recordingIndicator.classList.remove('active');
 
       if (state.library.length === 1) elements.statsBar.style.display = 'flex';
+      saveToLocalStorage();
     }
 
     // ============================================
@@ -1107,6 +1255,7 @@
 
       updateProgress();
       updateStats();
+      saveToLocalStorage();
     }
 
     // ============================================
@@ -1261,6 +1410,7 @@
 
       elements.nextBtn.classList.remove('hidden');
       updateStats();
+      saveToLocalStorage();
     }
 
     // Keep aspect ratio (no stretch) after rotate/resize
@@ -1320,29 +1470,46 @@
       return "";
     }
 
-    async function unlockAudioForiOS() {
-      if (state.ttsUnlocked) return;
+  async function unlockAudioForiOS() {
+    if (state.ttsUnlocked) return;
+    
+    console.log("🔓 Attempting to unlock audio for mobile...");
 
-      try {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) { state.ttsUnlocked = true; return; }
-
-        state.unlockCtx = state.unlockCtx || new AC();
-        await state.unlockCtx.resume();
-
-        // Play a tiny silent buffer (classic iOS unlock)
-        const buf = state.unlockCtx.createBuffer(1, 1, 22050);
-        const src = state.unlockCtx.createBufferSource();
-        src.buffer = buf;
-        src.connect(state.unlockCtx.destination);
-        src.start(0);
-
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) {
         state.ttsUnlocked = true;
-      } catch (e) {
-        // If it fails, we still keep going; worst case audio.play() gets blocked
-        state.ttsUnlocked = true;
+        console.log("✓ No AudioContext needed (desktop browser)");
+        return;
       }
+
+      if (!state.unlockCtx) {
+        state.unlockCtx = new AC();
+      }
+
+      if (state.unlockCtx.state === 'suspended') {
+        await state.unlockCtx.resume();
+        console.log("✓ AudioContext resumed");
+      }
+
+      // Play silent buffer (iOS unlock trick)
+      const buffer = state.unlockCtx.createBuffer(1, 1, 22050);
+      const source = state.unlockCtx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(state.unlockCtx.destination);
+      source.start(0);
+
+      // Also play silent HTML5 audio
+      const silentAudio = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAADhADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwP////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAA4QfxZS8AAAAAAD/+xDEAAADSAAAAAAAAABLAAAAAExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVQ==');
+      await silentAudio.play().catch(() => {});
+
+      state.ttsUnlocked = true;
+      console.log("✓ Audio unlocked successfully!");
+    } catch (e) {
+      console.warn("⚠️ Audio unlock warning:", e.message);
+      state.ttsUnlocked = true; // Continue anyway
     }
+  }
 
     async function startRecording() {
       if (!state.currentTarget) {
@@ -1459,30 +1626,63 @@
         if (data.transcript) state.dialogHistory.push({ role: "user", content: data.transcript });
         if (data.reply) state.dialogHistory.push({ role: "assistant", content: data.reply });
 
-        // TTS
+        // TTS - Enhanced for mobile
         if (data.ttsAudioBase64 && data.ttsMime) {
+          console.log("🔊 Preparing TTS audio...");
+          
           const bytes = Uint8Array.from(atob(data.ttsAudioBase64), c => c.charCodeAt(0));
           const audioBlob = new Blob([bytes], { type: data.ttsMime });
           const url = URL.createObjectURL(audioBlob);
 
+          // Store for replay
+          state.lastTtsData = { blob: audioBlob, mime: data.ttsMime };
+
+          // Show replay button
+          const replayBtn = document.getElementById('replayTtsBtn');
+          if (replayBtn) {
+            replayBtn.classList.remove('hidden');
+            replayBtn.onclick = () => playStoredTts();
+          }
+
           const audio = new Audio(url);
-          audio.playsInline = true;   // iOS
+          audio.playsInline = true;
           audio.preload = "auto";
+          audio.volume = 1.0;
 
           try {
             await audio.play();
+            console.log("✓ TTS audio playing!");
           } catch (e) {
-            console.warn("TTS play blocked/failed:", e);
-            // Useful hint for iOS: if it still blocks, user gesture unlock is required
-            // (we try to unlock on pointerdown already)
-          } finally {
-            audio.onended = () => URL.revokeObjectURL(url);
-            // Also revoke if it errors
-            audio.onerror = () => URL.revokeObjectURL(url);
+            console.warn("⚠️ TTS autoplay blocked:", e.message);
+            console.log("💡 User can click 'Replay Audio' button");
+            
+            // Visual indicator
+            elements.aiReply.style.borderLeft = "3px solid #00ff88";
+            elements.aiReply.title = "Audio ready - click Replay button to hear";
+            
+            // Try again after short delay
+            setTimeout(async () => {
+              try {
+                await audio.play();
+                console.log("✓ TTS playing (retry succeeded)");
+              } catch (e2) {
+                // Will need manual replay
+              }
+            }, 150);
           }
-        }
 
+          audio.onended = () => {
+            URL.revokeObjectURL(url);
+            console.log("✓ TTS playback complete");
+          };
+          
+          audio.onerror = (e) => {
+            console.error("❌ TTS error:", e);
+            URL.revokeObjectURL(url);
+          };
+        }
         updateStats();
+        saveToLocalStorage();
       } catch (error) {
         console.error('Dialog error:', error);
         elements.aiReply.textContent = "⚠️ Dialog failed. Check connection and try again.";
@@ -1491,6 +1691,55 @@
         elements.talkBtn.textContent = "🎙️ Hold to Talk";
       }
     }
+  // ============================================
+  // TTS REPLAY
+  // ============================================
+  async function playStoredTts() {
+    if (!state.lastTtsData) {
+      console.warn("No TTS audio stored");
+      alert("No audio available to replay");
+      return;
+    }
+
+    console.log("🔊 Replaying TTS audio...");
+
+    const url = URL.createObjectURL(state.lastTtsData.blob);
+    const audio = new Audio(url);
+    audio.playsInline = true;
+    audio.volume = 1.0;
+
+    const replayBtn = document.getElementById('replayTtsBtn');
+    if (replayBtn) {
+      replayBtn.textContent = "🔊 Playing...";
+      replayBtn.disabled = true;
+    }
+
+    try {
+      await audio.play();
+      console.log("✓ Replay successful!");
+    } catch (e) {
+      console.error("❌ Replay failed:", e);
+      alert("Audio playback blocked. Check your device volume and audio permissions.");
+    }
+
+    audio.onended = () => {
+      URL.revokeObjectURL(url);
+      if (replayBtn) {
+        replayBtn.textContent = "🔊 Replay Audio";
+        replayBtn.disabled = false;
+      }
+      console.log("✓ Replay complete");
+    };
+    
+    audio.onerror = () => {
+      URL.revokeObjectURL(url);
+      if (replayBtn) {
+        replayBtn.textContent = "🔊 Replay Audio";
+        replayBtn.disabled = false;
+      }
+    };
+  }
+
 
     // ============================================
     // UI HELPERS
@@ -1551,7 +1800,143 @@
         fitCanvas(elements.mysteryCanvas, mysteryCtx);
       });
     }
+  // ============================================
+  // DATA PERSISTENCE (localStorage)
+  // ============================================
+  const STORAGE_KEY = 'sonic-fingerprint-lab-data';
+  const STORAGE_VERSION = 1;
 
+  // Save all important state to localStorage
+  function saveToLocalStorage() {
+    try {
+      // Convert library items: canvas → data URL
+      const libraryToSave = state.library.map(item => ({
+        word: item.word,
+        imgDataUrl: item.img.toDataURL('image/png'),
+        freq: Array.from(item.freq),
+        analysis: item.analysis,
+        timestamp: item.timestamp
+      }));
+
+      const dataToSave = {
+        version: STORAGE_VERSION,
+        library: libraryToSave,
+        score: state.score,
+        difficulty: state.difficulty,
+        points: state.points,
+        dialogHistory: state.dialogHistory.slice(-20),
+        savedAt: new Date().toISOString()
+      };
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+      console.log('✓ Data saved to localStorage:', dataToSave.library.length, 'words');
+    } catch (error) {
+      console.error('Failed to save to localStorage:', error);
+      if (error.name === 'QuotaExceededError') {
+        alert('Storage quota exceeded. Try deleting some words.');
+      }
+    }
+  }
+
+  // Load state from localStorage
+  async function loadFromLocalStorage() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) {
+        console.log('No saved data found');
+        return false;
+      }
+
+      const data = JSON.parse(saved);
+      
+      if (data.version !== STORAGE_VERSION) {
+        console.warn('Saved data version mismatch, clearing...');
+        localStorage.removeItem(STORAGE_KEY);
+        return false;
+      }
+
+      console.log('📥 Loading saved data from', data.savedAt);
+      console.log('Found', data.library.length, 'saved words');
+
+      // Restore library: data URL → canvas
+      for (const item of data.library) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        const img = new Image();
+        await new Promise((resolve, reject) => {
+          img.onload = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            resolve();
+          };
+          img.onerror = reject;
+          img.src = item.imgDataUrl;
+        });
+
+        state.library.push({
+          word: item.word,
+          img: canvas,
+          freq: new Uint8Array(item.freq),
+          analysis: item.analysis,
+          timestamp: item.timestamp
+        });
+
+        addToGallery(item.word, canvas, state.library.length - 1);
+      }
+
+      state.score = data.score || 0;
+      state.difficulty = data.difficulty || 1;
+      state.points = data.points || 0;
+      state.dialogHistory = data.dialogHistory || [];
+
+      updateProgress();
+      updateStats();
+
+      console.log('✓ Data loaded successfully!');
+      
+      if (data.library.length > 0) {
+        showStatus(`✓ Restored ${data.library.length} captured words from previous session`, 'success');
+        setTimeout(() => {
+          showStatus('Ready to capture more words or enter Challenge Mode!', 'info');
+        }, 3000);
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Failed to load from localStorage:', error);
+      localStorage.removeItem(STORAGE_KEY);
+      return false;
+    }
+  }
+
+  // Clear all saved data
+  function clearSavedData() {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      console.log('✓ Saved data cleared');
+    } catch (error) {
+      console.error('Failed to clear saved data:', error);
+    }
+  }
+
+  // Get storage info (for debugging)
+  function getStorageInfo() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return { exists: false };
+    
+    const sizeKB = (saved.length * 2) / 1024;
+    const data = JSON.parse(saved);
+    
+    return {
+      exists: true,
+      sizeKB: sizeKB.toFixed(2),
+      wordCount: data.library?.length || 0,
+      savedAt: data.savedAt,
+      version: data.version
+    };
+  }
     // ============================================
     // EVENTS
     // ============================================
@@ -1562,7 +1947,8 @@
     elements.nextBtn.onclick = startRound;
 
     elements.resetLabBtn.onclick = () => {
-      if (confirm('This will reset all your captured words and progress. Continue?')) {
+      if (confirm('This will delete all your captured words and reset progress. Continue?')) {
+        clearSavedData();  // Clear localStorage first
         location.reload();
       }
     };
@@ -1609,6 +1995,26 @@
     });
 
     console.log('🧬 Sonic Fingerprint Lab initialized');
+  // ============================================
+  // INITIALIZE - Load saved data on page load
+  // ============================================
+  (async function initializeApp() {
+    console.log('🧬 Sonic Fingerprint Lab initializing...');
+    
+    const loaded = await loadFromLocalStorage();
+    
+    if (loaded && state.library.length > 0) {
+      elements.statsBar.style.display = 'flex';
+      console.log('✓ Loaded', state.library.length, 'saved words');
+    } else {
+      console.log('✓ App initialized (no saved data)');
+    }
+    
+    const storageInfo = getStorageInfo();
+    console.log('Storage info:', storageInfo);
+  })();
+
+  console.log('🧬 Sonic Fingerprint Lab ready!');
   </script>
 </body>
 </html>
