@@ -1130,11 +1130,24 @@
         return;
       }
 
-      // Snapshot the live canvas at its current buffer size
+      // Snapshot at CSS size (not DPR-scaled buffer size)
+      const dpr = window.devicePixelRatio || 1;
+      const cssW = elements.liveCanvas.width / dpr;
+      const cssH = elements.liveCanvas.height / dpr;
+
       const snapCanvas = document.createElement('canvas');
-      snapCanvas.width = elements.liveCanvas.width;
-      snapCanvas.height = elements.liveCanvas.height;
-      snapCanvas.getContext('2d').drawImage(elements.liveCanvas, 0, 0);
+      snapCanvas.width = cssW;
+      snapCanvas.height = cssH;
+      const snapCtx = snapCanvas.getContext('2d');
+
+      // Scale down from buffer to CSS size
+      snapCtx.drawImage(
+        elements.liveCanvas,
+        0, 0, elements.liveCanvas.width, elements.liveCanvas.height,
+        0, 0, cssW, cssH
+      );
+
+      console.log('Captured canvas:', {cssW, cssH, dpr});
 
       const freqSnapshot = new Uint8Array(state.dataArray);
 
@@ -1429,11 +1442,37 @@
     function redrawMystery() {
       if (!state.currentTarget) return;
 
+      const canvas = elements.mysteryCanvas;
+      const ctx = mysteryCtx;
+      
+      // Get CSS dimensions
       const dpr = window.devicePixelRatio || 1;
-      const cssW = elements.mysteryCanvas.width / dpr;
-      const cssH = elements.mysteryCanvas.height / dpr;
+      const cssW = canvas.width / dpr;
+      const cssH = canvas.height / dpr;
 
-      drawContain(mysteryCtx, state.currentTarget.img, cssW, cssH);
+      // Clear canvas
+      ctx.clearRect(0, 0, cssW, cssH);
+
+      // Get source image dimensions
+      const sourceImg = state.currentTarget.img;
+      const sourceW = sourceImg.width;
+      const sourceH = sourceImg.height;
+
+      // Calculate scale to fit (contain, not cover)
+      const scale = Math.min(cssW / sourceW, cssH / sourceH);
+      
+      // Calculate destination size
+      const destW = sourceW * scale;
+      const destH = sourceH * scale;
+      
+      // Center it
+      const x = (cssW - destW) / 2;
+      const y = (cssH - destH) / 2;
+
+      // Draw with proper scaling
+      ctx.drawImage(sourceImg, 0, 0, sourceW, sourceH, x, y, destW, destH);
+      
+      console.log('Mystery canvas redrawn:', {sourceW, sourceH, destW, destH, scale});
     }
 
     // ============================================
@@ -1470,47 +1509,104 @@
       return "";
     }
 
-  async function unlockAudioForiOS() {
-    if (state.ttsUnlocked) return;
-    
-    console.log("🔓 Attempting to unlock audio for mobile...");
+    async function unlockAudioForiOS() {
+      if (state.ttsUnlocked) return;
+      
+      console.log("🔓 AGGRESSIVE audio unlock starting...");
 
-    try {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) {
+      try {
+        // Method 1: AudioContext unlock
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) {
+          if (!state.unlockCtx) {
+            state.unlockCtx = new AC();
+            console.log("Created new AudioContext");
+          }
+
+          if (state.unlockCtx.state === 'suspended') {
+            await state.unlockCtx.resume();
+            console.log("✓ AudioContext resumed from suspended");
+          }
+
+          // Play silent buffer
+          const buffer = state.unlockCtx.createBuffer(1, 1, 22050);
+          const source = state.unlockCtx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(state.unlockCtx.destination);
+          source.start(0);
+          console.log("✓ Silent buffer played");
+        }
+
+        // Method 2: HTML5 Audio unlock (MORE AGGRESSIVE)
+        const silentMp3 = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAADhADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwP////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAA4QfxZS8AAAAAAD/+xDEAAADSAAAAAAAAABLAAAAAExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVQ==';
+        
+        const audio1 = new Audio(silentMp3);
+        audio1.volume = 0.01; // Almost silent but not muted
+        audio1.preload = 'auto';
+        audio1.playsInline = true;
+        
+        try {
+          await audio1.play();
+          console.log("✓ Silent MP3 played");
+        } catch (e) {
+          console.warn("Silent MP3 blocked:", e.message);
+        }
+
+        // Method 3: Try playing actual audible beep (helps iOS)
+        const audioCtx = state.unlockCtx || new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        oscillator.frequency.value = 440; // A4 note
+        gainNode.gain.value = 0.01; // Very quiet
+        
+        oscillator.start(audioCtx.currentTime);
+        oscillator.stop(audioCtx.currentTime + 0.01); // 10ms beep
+        
+        console.log("✓ Beep tone played");
+
         state.ttsUnlocked = true;
-        console.log("✓ No AudioContext needed (desktop browser)");
-        return;
+        console.log("✅ Audio unlock complete!");
+        
+        // Show user confirmation
+        const indicator = document.getElementById('aiReply');
+        if (indicator && indicator.textContent === '—') {
+          indicator.textContent = '✓ Audio enabled! Ready to answer questions.';
+          indicator.style.color = '#00ff88';
+          setTimeout(() => {
+            indicator.textContent = '—';
+            indicator.style.color = '';
+          }, 2000);
+        }
+
+      } catch (e) {
+        console.error("❌ Audio unlock failed:", e);
+        state.ttsUnlocked = true; // Continue anyway
       }
-
-      if (!state.unlockCtx) {
-        state.unlockCtx = new AC();
-      }
-
-      if (state.unlockCtx.state === 'suspended') {
-        await state.unlockCtx.resume();
-        console.log("✓ AudioContext resumed");
-      }
-
-      // Play silent buffer (iOS unlock trick)
-      const buffer = state.unlockCtx.createBuffer(1, 1, 22050);
-      const source = state.unlockCtx.createBufferSource();
-      source.buffer = buffer;
-      source.connect(state.unlockCtx.destination);
-      source.start(0);
-
-      // Also play silent HTML5 audio
-      const silentAudio = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAADhADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwP////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAA4QfxZS8AAAAAAD/+xDEAAADSAAAAAAAAABLAAAAAExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVQ==');
-      await silentAudio.play().catch(() => {});
-
-      state.ttsUnlocked = true;
-      console.log("✓ Audio unlocked successfully!");
-    } catch (e) {
-      console.warn("⚠️ Audio unlock warning:", e.message);
-      state.ttsUnlocked = true; // Continue anyway
     }
-  }
-
+    // Test if audio actually works
+    async function testAudioPlayback() {
+      console.log("🧪 Testing audio playback...");
+      
+      try {
+        const silentMp3 = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAADhADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwP////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAA4QfxZS8AAAAAAD/+xDEAAADSAAAAAAAAABLAAAAAExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVQ==';
+        
+        const testAudio = new Audio(silentMp3);
+        testAudio.volume = 0.5;
+        testAudio.playsInline = true;
+        
+        await testAudio.play();
+        console.log("✅ Audio test PASSED - playback works!");
+        return true;
+      } catch (e) {
+        console.error("❌ Audio test FAILED:", e.message);
+        alert("⚠️ Audio blocked by browser. Please:\n1. Check device is not in silent mode\n2. Check browser audio permissions\n3. Try with headphones connected");
+        return false;
+      }
+    }
     async function startRecording() {
       if (!state.currentTarget) {
         elements.aiReply.textContent = "Enter Challenge Mode first to use the AI quiz 🙂";
@@ -1648,27 +1744,39 @@
           audio.playsInline = true;
           audio.preload = "auto";
           audio.volume = 1.0;
+          
+          // CRITICAL for iOS: load the audio first
+          audio.load();
+          
+          // Wait a tiny bit for load
+          await new Promise(resolve => setTimeout(resolve, 50));
+
+          console.log("Audio state:", {
+            readyState: audio.readyState,
+            paused: audio.paused,
+            volume: audio.volume
+          });
 
           try {
-            await audio.play();
-            console.log("✓ TTS audio playing!");
+            const playPromise = audio.play();
+            await playPromise;
+            console.log("✅ TTS playing successfully!");
+            
+            // Visual confirmation
+            elements.aiReply.style.borderLeft = "3px solid #00ff88";
+            setTimeout(() => {
+              elements.aiReply.style.borderLeft = "";
+            }, 2000);
+            
           } catch (e) {
-            console.warn("⚠️ TTS autoplay blocked:", e.message);
-            console.log("💡 User can click 'Replay Audio' button");
+            console.error("❌ TTS autoplay blocked:", e.name, e.message);
+            console.log("💡 Showing replay button for manual playback");
             
             // Visual indicator
-            elements.aiReply.style.borderLeft = "3px solid #00ff88";
-            elements.aiReply.title = "Audio ready - click Replay button to hear";
+            elements.aiReply.style.borderLeft = "3px solid #ffaa00";
+            elements.aiReply.title = "Audio ready - click Replay button";
             
-            // Try again after short delay
-            setTimeout(async () => {
-              try {
-                await audio.play();
-                console.log("✓ TTS playing (retry succeeded)");
-              } catch (e2) {
-                // Will need manual replay
-              }
-            }, 150);
+            alert("🔊 Audio ready! Tap the 'Replay Audio' button below to hear the response.");
           }
 
           audio.onended = () => {
@@ -1707,6 +1815,10 @@
     const audio = new Audio(url);
     audio.playsInline = true;
     audio.volume = 1.0;
+    
+    // Load first
+    audio.load();
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     const replayBtn = document.getElementById('replayTtsBtn');
     if (replayBtn) {
@@ -1715,11 +1827,31 @@
     }
 
     try {
-      await audio.play();
-      console.log("✓ Replay successful!");
+      // Try to play
+      const playPromise = audio.play();
+      await playPromise;
+      
+      console.log("✅ Replay successful!");
+      
+      // Visual feedback
+      elements.aiReply.style.backgroundColor = "rgba(0, 255, 136, 0.1)";
+      setTimeout(() => {
+        elements.aiReply.style.backgroundColor = "";
+      }, 2000);
+      
     } catch (e) {
       console.error("❌ Replay failed:", e);
-      alert("Audio playback blocked. Check your device volume and audio permissions.");
+      
+      // Give detailed error
+      let errorMsg = "Audio playback blocked.\n\n";
+      errorMsg += "Please try:\n";
+      errorMsg += "• Turn OFF silent mode\n";
+      errorMsg += "• Increase volume\n";
+      errorMsg += "• Use headphones\n";
+      errorMsg += "• Allow audio in browser settings\n";
+      errorMsg += "• Try Chrome browser";
+      
+      alert(errorMsg);
     }
 
     audio.onended = () => {
@@ -1969,8 +2101,17 @@
     elements.talkBtn.addEventListener("pointerdown", async (e) => {
       e.preventDefault();
 
-      // unlock TTS/audio on the same user gesture (helps iOS)
-      await unlockAudioForiOS();
+      // Aggressive unlock on first tap
+      if (!state.ttsUnlocked) {
+        console.log("🎯 First tap - unlocking audio...");
+        await unlockAudioForiOS();
+        
+        // Test if it actually worked
+        const testPassed = await testAudioPlayback();
+        if (!testPassed) {
+          console.error("Audio test failed - TTS may not work");
+        }
+      }
 
       if (isRecordingHold) return;
       isRecordingHold = true;
