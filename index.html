@@ -152,6 +152,7 @@
     }
 
     .captured-item {
+      position: relative;
       text-align: center;
       opacity: 0;
       animation: fadeIn 0.5s forwards;
@@ -188,7 +189,21 @@
       font-size: 0.7rem;
       color: #666;
     }
-
+    .delete-btn{
+      position:absolute;
+      top:6px; right:6px;
+      width:22px; height:22px;
+      border-radius:50%;
+      border:1px solid #555;
+      background: rgba(0,0,0,.65);
+      color:#fff;
+      font-weight:900;
+      line-height:20px;
+      cursor:pointer;
+      z-index:5;
+      padding:0;
+    }
+    .delete-btn:hover{ border-color:#ff4444; color:#ff4444; }
     /* Controls */
     .controls {
       margin: 20px 0;
@@ -913,8 +928,10 @@
       liveCtx.putImageData(imgData, 0, 2);
 
       // Draw new frequency line
-      const barWidth = elements.liveCanvas.width / state.dataArray.length;
-      for (let i = 0; i < state.dataArray.length; i++) {
+      const binsToShow = 80; // try 60–120
+      const barWidth = elements.liveCanvas.width / binsToShow;
+
+      for (let i = 0; i < binsToShow; i++) {
         const val = state.dataArray[i];
         const hue = 180 + (val * 0.8);
         const lightness = val / 2.5;
@@ -1008,6 +1025,18 @@
       container.className = 'captured-item';
       container.setAttribute('data-index', index);
 
+      // Delete button
+      const del = document.createElement('button');
+      del.className = 'delete-btn';
+      del.type = 'button';
+      del.textContent = '×';
+      del.title = 'Delete';
+      del.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteCapture(Number(container.getAttribute('data-index')));
+      });
+      container.appendChild(del);
+
       // Create offscreen canvas for scaling
       const off = document.createElement('canvas');
       off.width = imageData.width;
@@ -1036,11 +1065,9 @@
       container.appendChild(wordLabel);
       container.appendChild(timestamp);
       
-      // Click to view details | Shift+Click to delete
-      container.addEventListener('click', (e) => {
-        const idx = Number(container.getAttribute('data-index'));
-        if (e.shiftKey) return deleteCapture(idx);
-        showWordDetails(idx);
+      // Click to view details
+      container.addEventListener('click', () => {
+        showWordDetails(Number(container.getAttribute('data-index')));
       });
 
 
