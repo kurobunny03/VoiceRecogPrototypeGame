@@ -35,19 +35,38 @@ def analyze_sound():
 
         # 2. THE OPENAI PROMPT
         completion = client.chat.completions.create(
-            model="gpt-4o-mini", # Fast, cheap, and smart
+            model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are a Physics Tutor. Analyze the sound data provided."},
-                {"role": "user", "content": f"""
-                The student said the word: '{word}'
-                Here is the frequency data (0-255 scale) from the Fast Fourier Transform:
-                {freq_values}
-                
-                Task: Explain the visual shape of this sound in 1-2 short sentences. 
-                Focus on pitch (low vs high energy) and texture.
-                """}
+                {
+                    "role": "system",
+                    "content": "You are a Physics and Signal Processing Tutor. Analyze FFT data quantitatively and explain results clearly."
+                },
+                {
+                    "role": "user",
+                    "content": f"""
+                    The student said the word: '{word}'
+
+                    Here is the FFT frequency magnitude data (0–255 scale):
+                    {freq_values}
+
+                    Perform the following analysis:
+
+                    1. Identify the index of the highest amplitude value (dominant frequency bin).
+                    2. Estimate whether the dominant energy is in the lower 33%, middle 33%, or upper 33% of frequencies.
+                    3. Estimate the average amplitude of the dataset.
+                    4. Briefly describe what this implies about the pitch (low, mid, high).
+
+                    Respond in this structured format:
+
+                    - Dominant Bin Index: ___
+                    - Dominant Region: ___
+                    - Estimated Average Amplitude: ___
+                    - Interpretation (1-2 sentences): ___
+                    """
+                }
             ]
         )
+
 
         # 3. EXTRACT ANSWER
         ai_response = completion.choices[0].message.content
