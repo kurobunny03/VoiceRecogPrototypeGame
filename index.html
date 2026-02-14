@@ -892,7 +892,7 @@
         state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         state.analyser = state.audioCtx.createAnalyser();
         state.analyser.fftSize = 512;
-        state.analyser.smoothingTimeConstant = 0.85;
+        state.analyser.smoothingTimeConstant = 0.6;
 
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         const source = state.audioCtx.createMediaStreamSource(stream);
@@ -928,14 +928,24 @@
       liveCtx.putImageData(imgData, 0, 2);
 
       // Draw new frequency line
-      const binsToShow = 80; // try 60–120
+      const binsToShow = 120; // try 60–120
       const barWidth = elements.liveCanvas.width / binsToShow;
+      const noiseFloor = 18;                 // raise/lower: higher = darker background
+      const gamma = 1.6;                     // contrast: higher = stronger bright bands
 
       for (let i = 0; i < binsToShow; i++) {
         const val = state.dataArray[i];
-        const hue = 180 + (val * 0.8);
-        const lightness = val / 2.5;
-        liveCtx.fillStyle = `hsl(${hue}, 100%, ${lightness}%)`;
+
+        // 0..1 after noise floor
+        let x = (val - noiseFloor) / (255 - noiseFloor);
+        if (x < 0) x = 0;
+
+        // contrast curve (more like real spectrogram intensity)
+        x = Math.pow(x, gamma);
+
+        // grayscale intensity (scientific spectrogram vibe)
+        const p = Math.floor(x * 255);
+        liveCtx.fillStyle = `rgb(${p}, ${p}, ${p})`;
         liveCtx.fillRect(i * barWidth, 0, barWidth, 2);
       }
 
