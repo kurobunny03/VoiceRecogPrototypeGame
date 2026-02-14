@@ -28,4 +28,4 @@ An interactive web-based STEM game that teaches students about acoustics, freque
 
 
 ## 🔒 Security Note
-This project uses a **Flask Proxy Architecture** to protect API keys. The Gemini API key is stored as an environment variable on the server side and is never exposed to the client-side browser code.
+This project uses a **Flask Proxy Architecture** to protect API keys. The API key is stored as an environment variable on the server side and is never exposed to the client-side browser code.
