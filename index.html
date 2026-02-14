@@ -1106,6 +1106,41 @@
     // ============================================
     // CHALLENGE MODE
     // ============================================
+    
+    // Helper: Get initial question based on difficulty
+    function getInitialQuestion(difficulty) {
+      const questions = {
+        1: [
+          "What happens to the spectral pattern when you speak the same word louder?",
+          "Which frequency range shows the most energy in this pattern?",
+          "How does speaking at different pitches change the spectrum?"
+        ],
+        2: [
+          "Why do vowel sounds typically show energy in the mid-frequency range?",
+          "What causes the peaks and valleys in the frequency spectrum?",
+          "How would whispering this word change the spectral pattern?"
+        ],
+        3: [
+          "Explain the relationship between the fundamental frequency and harmonics you see here.",
+          "Why might two different people saying this word create different patterns?",
+          "What makes this word's spectral signature unique compared to others?"
+        ],
+        4: [
+          "How do voiced sounds differ from unvoiced sounds in spectral characteristics?",
+          "What role do formants play in distinguishing different vowel sounds?",
+          "Why does the FFT display discrete bins rather than a continuous spectrum?"
+        ],
+        5: [
+          "How would filtering affect the intelligibility of this word based on its spectrum?",
+          "What spectral features would you use for speaker identification?",
+          "Explain the time-frequency resolution trade-off in spectral analysis."
+        ]
+      };
+      
+      const questionList = questions[difficulty] || questions[1];
+      return questionList[Math.floor(Math.random() * questionList.length)];
+    }
+    
     function startRound() {
       // Reset UI
       elements.feedback.innerHTML = "";
@@ -1118,7 +1153,15 @@
       state.currentTarget = state.library[Math.floor(Math.random() * state.library.length)];
       mysteryCtx.putImageData(state.currentTarget.data, 0, 0);
 
-      // Create options
+      // Set initial question for AI quiz (only on first round)
+      if (state.totalRounds === 0) {
+        const initialQuestion = getInitialQuestion(state.difficulty);
+        elements.nextQ.textContent = initialQuestion;
+        elements.studentTranscript.textContent = "—";
+        elements.aiReply.textContent = "Hold the talk button and answer the question above!";
+      }
+
+      // Create options for word matching game
       const decoys = state.library
         .filter(item => item.word !== state.currentTarget.word)
         .sort(() => 0.5 - Math.random())
@@ -1134,6 +1177,9 @@
       });
 
       state.totalRounds++;
+      
+      // Reset meter
+      updateMeter(0);
     }
 
     function checkAnswer(selectedWord) {
@@ -1313,19 +1359,18 @@
     }
 
     function switchToChallenge() {
-        elements.labSection.classList.add('hidden');
-        elements.challengeSection.style.display = 'flex';
-        
-        // Set initial question when entering challenge mode
-        elements.nextQ.textContent = "What happens to the frequency spectrum when you speak louder?";
-        elements.studentTranscript.textContent = "—";
-        elements.aiReply.textContent = "Welcome to Challenge Mode! Use the 'Hold to Talk' button above to answer questions about the audio patterns you've captured.";
-        
-        // Reset meter display
-        updateMeter(0);
-        
-        startRound();
-        }
+      elements.labSection.classList.add('hidden');
+      elements.challengeSection.style.display = 'flex';
+      
+      // Reset for new challenge session
+      state.totalRounds = 0;
+      state.score = 0;
+      
+      // Start first round (this will set initial question using getInitialQuestion)
+      startRound();
+      
+      console.log('Challenge mode activated. Target word:', state.currentTarget?.word);
+    }
 
     function switchToLab() {
       elements.challengeSection.style.display = 'none';
