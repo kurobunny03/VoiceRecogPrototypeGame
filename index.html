@@ -64,11 +64,31 @@
         .hidden { display: none !important; }
         
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+
     </style>
 </head>
 <body>
 
 <div id="container">
+    <div id="dialog-panel" style="margin-top:12px; padding:12px; border:1px solid #333; border-radius:10px; background:#111; text-align:left;">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+        <div style="font-size:12px; color:#888;">
+        <b style="color:#fff;">AI Oral Quiz</b><br>
+        Difficulty: <span id="diff">1</span> · Points: <span id="pts">0</span>
+        </div>
+
+        <button id="talkBtn" style="min-width:auto; padding:10px 14px; background:#00ff88;">
+        🎙️ Hold to Talk
+        </button>
+    </div>
+
+    <div style="margin-top:10px; font-size:12px; color:#aaa;">
+        <div><span style="color:#666;">You said:</span> <span id="studentTranscript">—</span></div>
+        <div style="margin-top:6px;"><span style="color:#666;">AI:</span> <span id="aiReply">—</span></div>
+        <div style="margin-top:6px;"><span style="color:#666;">Next question:</span> <span id="nextQ">Tap and answer by voice 🙂</span></div>
+    </div>
+    </div>
     <h1 style="text-shadow: 0 0 10px rgba(0,212,255,0.5);">🧬 Sonic Fingerprint Lab</h1>
     
     <div id="lab-section">
@@ -123,6 +143,7 @@
     // --- CONFIGURATION ---
     // Ensure this URL is correct for your specific Render deployment
     const API_URL = 'https://voicerecogprototypegame.onrender.com/analyze-sound'; 
+    const DIALOG_URL = 'https://voicerecogprototypegame.onrender.com/dialog';
     const API_PASSWORD = 'stem_explorer_2026';
 
     // --- SETUP ---
@@ -400,6 +421,161 @@
         document.getElementById('goToChallengeBtn').disabled = count < 4;
         if(count >= 4) document.getElementById('goToChallengeBtn').style.boxShadow = "0 0 15px #ff00d4";
     }
+// ==========================
+// AI DIALOG STATE
+// ==========================
+let dialogHistory = []; // [{role:"user"/"assistant", content:"..."}]
+let difficulty = 1;
+let points = 0;
+
+const talkBtn = document.getElementById('talkBtn');
+const studentTranscriptEl = document.getElementById('studentTranscript');
+const aiReplyEl = document.getElementById('aiReply');
+const nextQEl = document.getElementById('nextQ');
+const diffEl = document.getElementById('diff');
+const ptsEl = document.getElementById('pts');
+
+let recStream = null;
+let mediaRecorder = null;
+let audioChunks = [];
+
+async function ensureRecStream() {
+  if (recStream) return recStream;
+  recStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  return recStream;
+}
+
+async function startRecording() {
+  talkBtn.disabled = true;
+  talkBtn.textContent = "🎙️ Recording...";
+  audioChunks = [];
+
+  const stream = await ensureRecStream();
+  mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+
+  mediaRecorder.ondataavailable = (e) => {
+    if (e.data && e.data.size > 0) audioChunks.push(e.data);
+  };
+
+  mediaRecorder.start();
+  // unlock button quickly so "hold" feels responsive
+  setTimeout(() => { talkBtn.disabled = false; }, 120);
+}
+
+async function stopRecordingAndSend() {
+  if (!mediaRecorder) return;
+
+  talkBtn.disabled = true;
+  talkBtn.textContent = "⏳ Thinking...";
+
+  const stopped = new Promise((resolve) => {
+    mediaRecorder.onstop = resolve;
+  });
+
+  mediaRecorder.stop();
+  await stopped;
+
+  const blob = new Blob(audioChunks, { type: 'audio/webm' });
+  if (blob.size < 800) {
+    talkBtn.disabled = false;
+    talkBtn.textContent = "🎙️ Hold to Talk";
+    aiReplyEl.textContent = "I didn’t catch that—try again a bit louder 🙂";
+    return;
+  }
+
+  // Build context for the tutor: include current target FFT preview + analysis
+  const ctx = {
+    mode: "challenge",
+    currentWord: document.getElementById('wordInput').value?.toUpperCase?.().trim?.() || null,
+    targetWord: currentTarget?.word || null,
+    fft: currentTarget?.freq ? Array.from(currentTarget.freq).slice(0, 40) : null,
+    analysisText: currentTarget?.analysis || "",
+    difficulty,
+    points,
+    history: dialogHistory
+  };
+
+  const form = new FormData();
+  form.append("audio", blob, "answer.webm");
+  form.append("context", JSON.stringify(ctx));
+
+  try {
+    const resp = await fetch(DIALOG_URL, {
+      method: "POST",
+      headers: {
+        "X-Custom-Password": API_PASSWORD
+      },
+      body: form
+    });
+
+    if (!resp.ok) throw new Error("Dialog request failed");
+
+    const data = await resp.json();
+
+    // Update UI
+    studentTranscriptEl.textContent = data.transcript || "(no transcript)";
+    aiReplyEl.textContent = data.reply || "(no reply)";
+    nextQEl.textContent = data.nextQuestion || "—";
+
+    difficulty = data.difficulty ?? difficulty;
+    points = data.totalPoints ?? points;
+    diffEl.textContent = difficulty;
+    ptsEl.textContent = points;
+
+    // Save history for dialog feel
+    if (data.transcript) dialogHistory.push({ role: "user", content: data.transcript });
+    if (data.reply) dialogHistory.push({ role: "assistant", content: data.reply });
+
+    // Optional: play TTS if enabled server-side
+    if (data.ttsAudioBase64 && data.ttsMime) {
+      const bytes = Uint8Array.from(atob(data.ttsAudioBase64), c => c.charCodeAt(0));
+      const audioBlob = new Blob([bytes], { type: data.ttsMime });
+      const url = URL.createObjectURL(audioBlob);
+      const audio = new Audio(url);
+      audio.play().catch(() => {});
+      audio.onended = () => URL.revokeObjectURL(url);
+    }
+  } catch (e) {
+    console.error(e);
+    aiReplyEl.textContent = "Dialog failed (network/server). Check Render logs.";
+  } finally {
+    talkBtn.disabled = false;
+    talkBtn.textContent = "🎙️ Hold to Talk";
+  }
+}
+
+// Hold-to-talk behavior (mouse + touch)
+let holding = false;
+
+talkBtn.addEventListener("mousedown", async () => {
+  holding = true;
+  await startRecording();
+});
+talkBtn.addEventListener("mouseup", async () => {
+  if (!holding) return;
+  holding = false;
+  await stopRecordingAndSend();
+});
+talkBtn.addEventListener("mouseleave", async () => {
+  if (!holding) return;
+  holding = false;
+  await stopRecordingAndSend();
+});
+
+// Mobile
+talkBtn.addEventListener("touchstart", async (e) => {
+  e.preventDefault();
+  holding = true;
+  await startRecording();
+}, { passive: false });
+
+talkBtn.addEventListener("touchend", async (e) => {
+  e.preventDefault();
+  if (!holding) return;
+  holding = false;
+  await stopRecordingAndSend();
+}, { passive: false });
+
 </script>
 
 </body>
