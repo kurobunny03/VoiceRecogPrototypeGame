@@ -1106,12 +1106,17 @@
       // Decide how many bins to draw (avoid chunky columns on small screens)
       const maxBins = state.dataArray.length;
 
-      // Aim for ~1 column every 2 CSS pixels, clamped
+
+      // Mobile: fewer columns per pixel (avoid chunkiness)
+      // Desktop: more columns (use the whole width)
+      const targetCols =
+        cssW < 520 ? Math.floor(cssW / 2) : Math.floor(cssW); // breakpoint you can tweak
+
       const binsToShow = Math.min(
         maxBins,
-        Math.max(120, Math.floor(cssW / 2))
+        Math.max(120, targetCols)
       );
-
+      
       const barWidth = cssW / binsToShow;
 
       const noiseFloor = 18;
