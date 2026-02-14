@@ -1876,6 +1876,23 @@
     // ============================================
     // UI HELPERS
     // ============================================
+    function unlockAudioNow() {
+      // Do NOT await inside the gesture path
+      const silentMp3 = 'data:audio/mp3;base64,SUQz...'; // your existing one
+      const a = new Audio(silentMp3);
+      a.playsInline = true;
+      a.volume = 0.01;
+
+      const p = a.play(); // trigger immediately
+      if (p && typeof p.catch === "function") {
+        p.then(() => {
+          state.ttsUnlocked = true;
+        }).catch(() => {
+          // don't set unlocked on failure
+          state.ttsUnlocked = false;
+        });
+      }
+    }
     function showStatus(message, type = 'info') {
       elements.wordHint.innerHTML = message;
       if (type === 'loading') elements.wordHint.classList.add('loading');
@@ -2100,27 +2117,17 @@
 
     elements.talkBtn.addEventListener("pointerdown", async (e) => {
       e.preventDefault();
-
-      // Aggressive unlock on first tap
       if (!state.ttsUnlocked) {
-        console.log("🎯 First tap - unlocking audio...");
-        await unlockAudioForiOS();
-        
-        // Test if it actually worked
-        //const testPassed = await testAudioPlayback();
-        //if (!testPassed) {
-       //   console.error("Audio test failed - TTS may not work");
-       // }
+        unlockAudioNow(); // <-- no await
       }
-
-      if (isRecordingHold) return;
-      isRecordingHold = true;
-
-      try { elements.talkBtn.setPointerCapture(e.pointerId); } catch (_) {}
-
-      await startRecording();
+      // now do the async things
+      (async () => {
+        if (isRecordingHold) return;
+        isRecordingHold = true;
+        try { elements.talkBtn.setPointerCapture(e.pointerId); } catch (_) {}
+        await startRecording();
+      })();
     });
-
     elements.talkBtn.addEventListener("pointerup", async (e) => {
       e.preventDefault();
       await endHold();
