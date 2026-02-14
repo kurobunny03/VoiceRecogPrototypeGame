@@ -1313,10 +1313,19 @@
     }
 
     function switchToChallenge() {
-      elements.labSection.classList.add('hidden');
-      elements.challengeSection.style.display = 'flex';
-      startRound();
-    }
+        elements.labSection.classList.add('hidden');
+        elements.challengeSection.style.display = 'flex';
+        
+        // Set initial question when entering challenge mode
+        elements.nextQ.textContent = "What happens to the frequency spectrum when you speak louder?";
+        elements.studentTranscript.textContent = "—";
+        elements.aiReply.textContent = "Welcome to Challenge Mode! Use the 'Hold to Talk' button above to answer questions about the audio patterns you've captured.";
+        
+        // Reset meter display
+        updateMeter(0);
+        
+        startRound();
+        }
 
     function switchToLab() {
       elements.challengeSection.style.display = 'none';

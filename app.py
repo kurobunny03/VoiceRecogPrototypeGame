@@ -214,13 +214,16 @@ Pre-computed Analysis:
 - Max Amplitude: {analysis['max_amplitude']}
 - Energy Distribution: Low={analysis['energy_distribution']['low']}%, Mid={analysis['energy_distribution']['mid']}%, High={analysis['energy_distribution']['high']}%
 
-Provide a brief educational analysis (2-3 sentences) that:
-1. Explains what the dominant frequency tells us about the sound's pitch
-2. Describes the energy distribution and what it means for the word's characteristics
-3. Suggests one interesting observation about this specific word's acoustic signature
+Write a direct educational analysis (2-3 sentences) about this audio pattern. DO NOT use phrases like "Great question!" or acknowledge any question - just provide the analysis.
 
-Keep it engaging and accessible for high school students learning about sound waves and Fourier transforms.
+Your response should:
+1. Explain what the dominant frequency bin at position {analysis['dominant_bin']} tells us about the pitch
+2. Describe what the energy distribution reveals about the word's acoustic characteristics
+3. Note one interesting observation about this word's spectral signature
+
+Write in a clear, informative style for high school students learning about sound waves and Fourier analysis.
 """
+
 
 
 # =========================================================
@@ -328,7 +331,7 @@ def analyze_sound():
             messages=[
                 {
                     "role": "system",
-                    "content": "You are an enthusiastic physics tutor who explains spectral analysis clearly and concisely."
+                    "content": "You are a physics tutor analyzing audio spectral data. Provide direct, factual analysis without conversational phrases like 'Great question!' or 'Thanks for asking.' Just give clear educational explanations."
                 },
                 {
                     "role": "user",
