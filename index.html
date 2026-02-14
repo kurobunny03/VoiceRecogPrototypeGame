@@ -466,6 +466,8 @@
       background: linear-gradient(135deg, #00ff88, #00cc66);
       font-size: 0.95rem;
       touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
 
     }
 
@@ -1207,41 +1209,45 @@
     // PATTERN MATCHING
     // ============================================
     function compareLiveToTarget(live, target) {
-      // Calculate average volume
-      let liveVol = live.reduce((sum, val) => sum + val, 0) / live.length;
+      if (!live || !target || !target.length) {
+        updateMeter(0);
+        return;
+      }
+
+      const n = Math.min(live.length, target.length);
+
+      // average volume from live only
+      let liveVol = 0;
+      for (let i = 0; i < n; i++) liveVol += live[i];
+      liveVol /= n;
 
       if (liveVol < 5) {
         updateMeter(0);
         return;
       }
 
-      // Cosine similarity
-      let dotProduct = 0;
-      let magA = 0;
-      let magB = 0;
-
-      for (let i = 0; i < live.length; i++) {
-        dotProduct += live[i] * target[i];
-        magA += live[i] * live[i];
-        magB += target[i] * target[i];
+      let dotProduct = 0, magA = 0, magB = 0;
+      for (let i = 0; i < n; i++) {
+        const a = live[i];
+        const b = target[i];
+        dotProduct += a * b;
+        magA += a * a;
+        magB += b * b;
       }
 
       const magnitude = Math.sqrt(magA) * Math.sqrt(magB);
-      if (magnitude === 0) {
+      if (!magnitude) {
         updateMeter(0);
         return;
       }
 
       const similarity = dotProduct / magnitude;
 
-      // Map to percentage (0.7 = 0%, 1.0 = 100%)
       let percent = 0;
-      if (similarity > 0.7) {
-        percent = Math.min(100, ((similarity - 0.7) / 0.3) * 100);
-      }
-
+      if (similarity > 0.7) percent = Math.min(100, ((similarity - 0.7) / 0.3) * 100);
       updateMeter(Math.floor(percent));
     }
+
 
     function updateMeter(percent) {
       elements.aiPercent.innerText = percent;
@@ -1308,10 +1314,17 @@
 
       // Select random target
       state.currentTarget = state.library[Math.floor(Math.random() * state.library.length)];
-      // Draw snapshot scaled to the mystery canvas size
-      const rect = elements.mysteryCanvas.getBoundingClientRect();
-      mysteryCtx.clearRect(0, 0, rect.width, rect.height);
-      mysteryCtx.drawImage(state.currentTarget.img, 0, 0, rect.width, rect.height);
+
+
+      // Ensure canvas is correctly sized right now (important on mobile)
+      fitCanvas(elements.mysteryCanvas, mysteryCtx);
+
+      // Draw snapshot scaled to mystery canvas CSS pixels
+      const cw = elements.mysteryCanvas.clientWidth;
+      const ch = elements.mysteryCanvas.clientHeight;
+
+      mysteryCtx.clearRect(0, 0, cw, ch);
+      mysteryCtx.drawImage(state.currentTarget.img, 0, 0, cw, ch);
 
 
       // Set initial question for AI quiz (only on first round)
@@ -1389,7 +1402,20 @@
       state.audioChunks = [];
 
       const stream = await ensureRecordingStream();
-      state.mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      const preferredTypes = [
+        "audio/mp4",
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/aac"
+      ];
+
+      let mimeType = "";
+      for (const t of preferredTypes) {
+        if (MediaRecorder.isTypeSupported(t)) { mimeType = t; break; }
+      }
+
+      state.mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+
 
       state.mediaRecorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) {
@@ -1414,8 +1440,9 @@
       state.mediaRecorder.stop();
       await stopped;
 
-      const blob = new Blob(state.audioChunks, { type: 'audio/webm' });
-      
+      const blob = new Blob(state.audioChunks, { type: state.mediaRecorder.mimeType || 'audio/webm' });
+
+            
       if (blob.size < 800) {
         elements.talkBtn.disabled = false;
         elements.talkBtn.textContent = "🎙️ Hold to Talk";
@@ -1566,39 +1593,41 @@
         captureWord();
       }
     });
+    // Talk button - hold to record (Pointer Events, works on mobile/iOS)
+    let isRecordingHold = false;
 
-    // Talk button - hold to record
-    let holding = false;
+    async function endHold() {
+      if (!isRecordingHold) return;
+      isRecordingHold = false;
+      await stopRecordingAndSend();
+    }
 
-    elements.talkBtn.addEventListener("mousedown", async () => {
-      holding = true;
+    elements.talkBtn.addEventListener("pointerdown", async (e) => {
+      e.preventDefault();
+      if (isRecordingHold) return;
+
+      isRecordingHold = true;
+
+      // This is the magic that prevents "never let go" on mobile
+      try { elements.talkBtn.setPointerCapture(e.pointerId); } catch (_) {}
+
       await startRecording();
     });
 
-    elements.talkBtn.addEventListener("mouseup", async () => {
-      if (!holding) return;
-      holding = false;
-      await stopRecordingAndSend();
+    elements.talkBtn.addEventListener("pointerup", async (e) => {
+      e.preventDefault();
+      await endHold();
     });
 
-    elements.talkBtn.addEventListener("mouseleave", async () => {
-      if (!holding) return;
-      holding = false;
-      await stopRecordingAndSend();
+    elements.talkBtn.addEventListener("pointercancel", async (e) => {
+      e.preventDefault();
+      await endHold();
     });
 
-    elements.talkBtn.addEventListener("touchstart", async (e) => {
-      e.preventDefault();
-      holding = true;
-      await startRecording();
-    }, { passive: false });
-
-    elements.talkBtn.addEventListener("touchend", async (e) => {
-      e.preventDefault();
-      if (!holding) return;
-      holding = false;
-      await stopRecordingAndSend();
-    }, { passive: false });
+    // Extra safety: if finger slides off OR browser interrupts gesture
+    elements.talkBtn.addEventListener("lostpointercapture", async () => {
+      await endHold();
+    });
 
     // ============================================
     // INITIALIZATION
