@@ -464,6 +464,8 @@
       padding: 12px 20px;
       background: linear-gradient(135deg, #00ff88, #00cc66);
       font-size: 0.95rem;
+      touch-action: none;
+
     }
 
     #talkBtn:active:not(:disabled) {
@@ -602,22 +604,70 @@
 
     /* Responsive */
     @media (max-width: 768px) {
+      #container { padding: 14px; }
+
+      .header { margin-bottom: 18px; }
+      .header p { font-size: 0.95rem; }
+
+      /* Make the big canvas area less tall on phones */
+      .canvas-container { max-width: 100%; margin: 12px 0; }
+      canvas { border-radius: 10px; }
+
+      /* Stack controls cleanly */
       .controls {
         flex-direction: column;
+        gap: 10px;
+        max-width: 100%;
       }
 
       input, button {
         width: 100%;
       }
 
+      button {
+        padding: 14px 16px;       /* less wide, still thumb-friendly */
+        font-size: 0.95rem;
+      }
+
+      input {
+        min-width: 0;
+        padding: 14px 16px;
+        font-size: 1rem;
+      }
+
+      /* Gallery: slightly smaller cards so more fit */
       .gallery {
+        max-width: 100%;
+        padding: 14px;
+        gap: 10px;
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
       }
 
-      .stats-bar {
-        flex-direction: column;
-        gap: 10px;
+      .captured-item { padding: 10px; }
+      .captured-item canvas { height: 64px; }
+
+      /* Progress + stats tighter */
+      .progress-section { max-width: 100%; }
+      .stats-bar { gap: 10px; padding: 12px; }
+    }
+
+      @media (max-width: 420px) {
+      /* Make the LIVE label less bulky */
+      .canvas-label {
+        top: 8px; left: 10px;
+        padding: 4px 10px;
+        font-size: 0.8rem;
       }
+
+      /* Reduce big empty margins */
+      .ai-feedback { padding: 14px; }
+
+      /* Slightly smaller stats text */
+      .stat-value { font-size: 1.4rem; }
+      .stat-label { font-size: 0.75rem; }
+
+      /* Bigger delete X tap target */
+      .delete-btn { width: 26px; height: 26px; line-height: 24px; }
     }
 
     /* Tooltips */
@@ -877,8 +927,8 @@
     const liveCtx = elements.liveCanvas.getContext('2d', { willReadFrequently: true });
     const mysteryCtx = elements.mysteryCanvas.getContext('2d');
 
-    elements.liveCanvas.width = elements.mysteryCanvas.width = 600;
-    elements.liveCanvas.height = elements.mysteryCanvas.height = 200;
+    fitCanvas(elements.liveCanvas, 600, 200, liveCtx);
+    fitCanvas(elements.mysteryCanvas, 600, 200, mysteryCtx);
 
     // ============================================
     // AUDIO INITIALIZATION
