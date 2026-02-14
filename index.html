@@ -896,7 +896,7 @@
             <div class="dialog-line-label">AI Response:</div>
             <div class="dialog-line-content" id="aiReply">—</div>
             <button id="replayTtsBtn" class="hidden" style="margin-top:8px; padding:8px 16px; font-size:0.85rem; background:linear-gradient(135deg, #444, #333); border-radius:6px;">
-              🔊 Replay Audio
+              🔊 Play Audio
             </button>
           </div>
             <div class="dialog-line">
@@ -1057,21 +1057,26 @@
     }
 
     // ============================================
-    // VISUALIZATION (DPR SAFE)
+    // VISUALIZATION (DPR SAFE + MOBILE-FRIENDLY)
     // ============================================
     function draw() {
       if (!state.isMicActive) return;
       requestAnimationFrame(draw);
 
+      if (!state.analyser || !state.dataArray) return;
       state.analyser.getByteFrequencyData(state.dataArray);
 
       const dpr = window.devicePixelRatio || 1;
+
+      // These are the *CSS pixel* dimensions (because fitCanvas sets a DPR transform)
       const cssW = elements.liveCanvas.width / dpr;
       const cssH = elements.liveCanvas.height / dpr;
 
-      const scroll = 2; // CSS px
+      // Dynamic scanline thickness:
+      // On small mobile canvases, 1px lines look less chunky than 2px.
+      const scroll = (cssH <= 170) ? 1 : 2;
 
-      // Scroll down in CSS pixel space using drawImage (DPR-safe)
+      // Scroll the existing image down (waterfall effect)
       if (cssH > scroll) {
         liveCtx.drawImage(
           elements.liveCanvas,
@@ -1080,18 +1085,31 @@
         );
       }
 
-      const binsToShow = 80;
+      // Choose how many frequency bins to draw:
+      // - More bins on narrow canvases to avoid the "zoomed / blocky" look on mobile
+      // - Never exceed the analyser bin count
+      // - Roughly target ~1 column per CSS pixel width (clamped)
+      const maxBins = state.dataArray.length;
+      const binsToShow = Math.min(
+        maxBins,
+        Math.max(120, Math.floor(cssW)) // floor so it still looks detailed even if cssW is small-ish
+      );
+
       const noiseFloor = 18;
       const gamma = 1.6;
+
+      // Prevent huge bar widths (another source of "zoomed" look)
       const barWidth = cssW / binsToShow;
 
       for (let i = 0; i < binsToShow; i++) {
         const val = state.dataArray[i];
 
+        // Normalize with noise floor, then apply gamma to emphasize mid/high energy
         let x = (val - noiseFloor) / (255 - noiseFloor);
         x = Math.max(0, Math.min(1, x));
         x = Math.pow(x, gamma);
 
+        // Gradient mapping: blue → cyan/green → yellow/red-ish
         let r = 0, g = 0, b = 0;
         if (x < 0.5) {
           const t = x / 0.5;
@@ -1106,13 +1124,20 @@
         }
 
         liveCtx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-        liveCtx.fillRect(i * barWidth, 0, Math.ceil(barWidth), scroll);
+
+        // Draw one scanline at the top
+        // Use Math.max to avoid 0-width gaps from tiny rounding
+        const xPos = i * barWidth;
+        const w = Math.max(1, Math.ceil(barWidth));
+        liveCtx.fillRect(xPos, 0, w, scroll);
       }
 
-      if (state.currentTarget && elements.challengeSection.style.display === 'flex') {
+      // Live matching in challenge mode
+      if (state.currentTarget && elements.challengeSection.style.display === "flex") {
         compareLiveToTarget(state.dataArray, state.currentTarget.freq);
       }
     }
+
 
     // ============================================
     // WORD CAPTURE
@@ -1774,9 +1799,9 @@
             
             // Visual indicator
             elements.aiReply.style.borderLeft = "3px solid #ffaa00";
-            elements.aiReply.title = "Audio ready - click Replay button";
+            elements.aiReply.title = "Audio ready - click Play button";
             
-            alert("🔊 Audio ready! Tap the 'Replay Audio' button below to hear the response.");
+            alert("🔊 Audio ready! Tap the 'Play Audio' button below to hear the response.");
           }
 
           audio.onended = () => {
@@ -1857,7 +1882,7 @@
     audio.onended = () => {
       URL.revokeObjectURL(url);
       if (replayBtn) {
-        replayBtn.textContent = "🔊 Replay Audio";
+        replayBtn.textContent = "🔊 Play Audio";
         replayBtn.disabled = false;
       }
       console.log("✓ Replay complete");
@@ -1866,7 +1891,7 @@
     audio.onerror = () => {
       URL.revokeObjectURL(url);
       if (replayBtn) {
-        replayBtn.textContent = "🔊 Replay Audio";
+        replayBtn.textContent = "🔊 Play Audio";
         replayBtn.disabled = false;
       }
     };
