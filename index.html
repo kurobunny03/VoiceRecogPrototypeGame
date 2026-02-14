@@ -604,6 +604,9 @@
 
     /* Responsive */
     @media (max-width: 768px) {
+      /* Make canvases shorter ONLY on mobile */
+      .canvas-container { height: 150px; }
+      #liveCanvas, #mysteryCanvas { height: 150px; }
       #container { padding: 14px; }
 
       .header { margin-bottom: 18px; }
@@ -652,6 +655,9 @@
     }
 
       @media (max-width: 420px) {
+      .canvas-container { height: 130px; }
+      #liveCanvas, #mysteryCanvas { height: 130px; }
+
       /* Make the LIVE label less bulky */
       .canvas-label {
         top: 8px; left: 10px;
@@ -927,8 +933,23 @@
     const liveCtx = elements.liveCanvas.getContext('2d', { willReadFrequently: true });
     const mysteryCtx = elements.mysteryCanvas.getContext('2d');
 
-    fitCanvas(elements.liveCanvas, 600, 200, liveCtx);
-    fitCanvas(elements.mysteryCanvas, 600, 200, mysteryCtx);
+    function fitCanvas(canvas, ctx) {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect(); // uses your CSS sizes
+
+      canvas.width = Math.floor(rect.width * dpr);
+      canvas.height = Math.floor(rect.height * dpr);
+
+      // draw in CSS pixels
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    fitCanvas(elements.liveCanvas, liveCtx);
+    fitCanvas(elements.mysteryCanvas, mysteryCtx);
+    window.addEventListener("resize", () => {
+      fitCanvas(elements.liveCanvas, liveCtx);
+      fitCanvas(elements.mysteryCanvas, mysteryCtx);
+    });
 
     // ============================================
     // AUDIO INITIALIZATION
@@ -974,12 +995,14 @@
       state.analyser.getByteFrequencyData(state.dataArray);
 
       // Scroll effect
-      const imgData = liveCtx.getImageData(0, 0, elements.liveCanvas.width, elements.liveCanvas.height - 2);
+      const h = Math.floor(elements.liveCanvas.getBoundingClientRect().height);
+      const w = Math.floor(elements.liveCanvas.getBoundingClientRect().width);
+      const imgData = liveCtx.getImageData(0, 0, w, h - 2);
       liveCtx.putImageData(imgData, 0, 2);
 
       // Draw new frequency line
       const binsToShow = 80; // try 60–120
-      const barWidth = elements.liveCanvas.width / binsToShow;
+      const barWidth = w / binsToShow;
       const noiseFloor = 18;                 // raise/lower: higher = darker background
       const gamma = 1.6;                     // contrast: higher = stronger bright bands
 
