@@ -951,6 +951,11 @@
     window.addEventListener("resize", () => {
       fitCanvas(elements.liveCanvas, liveCtx);
       fitCanvas(elements.mysteryCanvas, mysteryCtx);
+
+      // if we're in challenge mode, redraw after resize wipes it
+      if (elements.challengeSection.style.display === "flex") {
+        redrawMystery();
+      }
     });
 
     // ============================================
@@ -1319,12 +1324,8 @@
       // Ensure canvas is correctly sized right now (important on mobile)
       fitCanvas(elements.mysteryCanvas, mysteryCtx);
 
-      // Draw snapshot scaled to mystery canvas CSS pixels
-      const cw = elements.mysteryCanvas.clientWidth;
-      const ch = elements.mysteryCanvas.clientHeight;
-
-      mysteryCtx.clearRect(0, 0, cw, ch);
-      mysteryCtx.drawImage(state.currentTarget.img, 0, 0, cw, ch);
+      // after picking target
+      redrawMystery();
 
 
       // Set initial question for AI quiz (only on first round)
@@ -1391,41 +1392,101 @@
       return state.recordingStream;
     }
 
-    async function startRecording() {
-      if (!state.currentTarget) {
-        elements.aiReply.textContent = "Enter Challenge Mode first to use the AI quiz 🙂";
-        return;
-      }
+// ============================================
+// AI DIALOG (ORAL QUIZ)
+// ============================================
+async function ensureRecordingStream() {
+  if (state.recordingStream) return state.recordingStream;
 
-      elements.talkBtn.disabled = true;
-      elements.talkBtn.textContent = "🎙️ Recording...";
-      state.audioChunks = [];
-
-      const stream = await ensureRecordingStream();
-      const preferredTypes = [
-        "audio/mp4",
-        "audio/webm;codecs=opus",
-        "audio/webm",
-        "audio/aac"
-      ];
-
-      let mimeType = "";
-      for (const t of preferredTypes) {
-        if (MediaRecorder.isTypeSupported(t)) { mimeType = t; break; }
-      }
-
-      state.mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-
-
-      state.mediaRecorder.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) {
-          state.audioChunks.push(e.data);
-        }
-      };
-
-      state.mediaRecorder.start();
-      setTimeout(() => { elements.talkBtn.disabled = false; }, 120);
+  // iOS Safari tends to behave better if you request some basic constraints
+  state.recordingStream = await navigator.mediaDevices.getUserMedia({
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true
     }
+  });
+
+  return state.recordingStream;
+}
+
+function pickBestRecorderMimeType() {
+  // Ordered for iOS-first compatibility, then everyone else
+  const preferredTypes = [
+    "audio/mp4",                // iOS Safari (AAC) — best case
+    "audio/mp4;codecs=mp4a.40.2",
+    "audio/aac",
+    "audio/webm;codecs=opus",   // Chrome/Android/Desktop
+    "audio/webm"
+  ];
+
+  if (!window.MediaRecorder) return "";
+
+  for (const t of preferredTypes) {
+    try {
+      if (MediaRecorder.isTypeSupported(t)) return t;
+    } catch {
+      // Some browsers throw on weird codec strings — ignore and continue
+    }
+  }
+
+  return ""; // let the browser pick its default
+}
+
+async function startRecording() {
+  if (!state.currentTarget) {
+    elements.aiReply.textContent = "Enter Challenge Mode first to use the AI quiz 🙂";
+    return;
+  }
+
+  // If we're already recording, don't start a second one
+  if (state.mediaRecorder && state.mediaRecorder.state === "recording") return;
+
+  // UI
+  elements.talkBtn.disabled = true;
+  elements.talkBtn.textContent = "🎙️ Recording...";
+  state.audioChunks = [];
+
+  try {
+    const stream = await ensureRecordingStream();
+
+    const mimeType = pickBestRecorderMimeType();
+    const options = mimeType ? { mimeType } : undefined;
+
+    state.mediaRecorder = options
+      ? new MediaRecorder(stream, options)
+      : new MediaRecorder(stream);
+
+    // Helpful debug (remove later)
+    console.log("MediaRecorder mimeType:", state.mediaRecorder.mimeType);
+
+    // Collect chunks
+    state.mediaRecorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) state.audioChunks.push(e.data);
+    };
+
+    // Safety: if recording errors on iOS, don't leave UI stuck
+    state.mediaRecorder.onerror = (e) => {
+      console.error("MediaRecorder error:", e);
+      elements.aiReply.textContent = "⚠️ Recording failed on this device/browser.";
+      elements.talkBtn.disabled = false;
+      elements.talkBtn.textContent = "🎙️ Hold to Talk";
+    };
+
+    // Start (timeslice makes iOS more reliable about firing dataavailable)
+    // You still call stop() on release.
+    state.mediaRecorder.start(250);
+
+  } catch (err) {
+    console.error("startRecording failed:", err);
+    elements.aiReply.textContent = "❌ Couldn't start recording. Check mic permissions and try again.";
+  } finally {
+    // Let them keep holding / releasing; we only disable briefly to avoid double taps
+    setTimeout(() => {
+      elements.talkBtn.disabled = false;
+    }, 120);
+  }
+}
 
     async function stopRecordingAndSend() {
       if (!state.mediaRecorder) return;
@@ -1571,6 +1632,30 @@
         fitCanvas(elements.mysteryCanvas, mysteryCtx);
       });
 
+    }
+    function redrawMystery() {
+      if (!state.currentTarget) return;
+
+      // IMPORTANT: draw using canvas *buffer* size, not getBoundingClientRect
+      const dpr = window.devicePixelRatio || 1;
+      const cssW = elements.mysteryCanvas.width / dpr;
+      const cssH = elements.mysteryCanvas.height / dpr;
+
+      mysteryCtx.clearRect(0, 0, cssW, cssH);
+      mysteryCtx.drawImage(state.currentTarget.img, 0, 0, cssW, cssH);
+    }
+
+    function pickRecorderMime() {
+      const options = [
+        "audio/mp4",              // best for iOS Safari (AAC)
+        "audio/webm;codecs=opus", // good for Chrome/Android/Desktop
+        "audio/webm",
+      ];
+
+      for (const t of options) {
+        if (window.MediaRecorder && MediaRecorder.isTypeSupported(t)) return t;
+      }
+      return ""; // let browser choose default
     }
 
     // ============================================
