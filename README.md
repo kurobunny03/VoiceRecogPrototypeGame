@@ -24,7 +24,7 @@ An interactive web-based STEM game that teaches students about acoustics, freque
 * **Frontend:** HTML5, CSS3, Vanilla JavaScript (Web Audio API).
 * **Backend:** Python (Flask), CORS.
 * **AI:** OPENAI API (gpt-4o-mini)
-* **Deployment:** GitHub Pages (Frontend) + Render/Railway (Backend).
+* **Deployment:** GitHub Pages (Frontend) + Render (https://voicerecogprototypegame.onrender.com)
 
 
 ## 🔒 Security Note
