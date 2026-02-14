@@ -89,6 +89,7 @@
       width: 100%;
       max-width: 700px;
       margin: 20px 0;
+      height: 220px; 
     }
 
     canvas {
@@ -97,7 +98,7 @@
       border-radius: 12px;
       box-shadow: 0 0 30px rgba(0, 212, 255, 0.3);
       width: 100%;
-      height: auto;
+      height: 100%; 
       display: block;
     }
 
@@ -1064,7 +1065,12 @@
         return;
       }
 
-      const snap = liveCtx.getImageData(0, 0, elements.liveCanvas.width, elements.liveCanvas.height);
+      // Snapshot the live canvas as a drawable image (scales nicely later)
+      const snapCanvas = document.createElement('canvas');
+      snapCanvas.width = elements.liveCanvas.width;
+      snapCanvas.height = elements.liveCanvas.height;
+      snapCanvas.getContext('2d').drawImage(elements.liveCanvas, 0, 0);
+
       const freqSnapshot = new Uint8Array(state.dataArray);
 
       showStatus(`Analyzing spectral data for "${word}"...`, 'loading');
@@ -1101,7 +1107,7 @@
       // Add to library
       state.library.push({
         word: word,
-        data: snap,
+        img: snapCanvas, 
         freq: freqSnapshot,
         analysis: aiAnalysis,
         timestamp: new Date().toLocaleTimeString()
@@ -1312,7 +1318,11 @@
 
       // Select random target
       state.currentTarget = state.library[Math.floor(Math.random() * state.library.length)];
-      mysteryCtx.putImageData(state.currentTarget.data, 0, 0);
+      // Draw snapshot scaled to the mystery canvas size
+      const rect = elements.mysteryCanvas.getBoundingClientRect();
+      mysteryCtx.clearRect(0, 0, rect.width, rect.height);
+      mysteryCtx.drawImage(state.currentTarget.img, 0, 0, rect.width, rect.height);
+
 
       // Set initial question for AI quiz (only on first round)
       if (state.totalRounds === 0) {
@@ -1524,15 +1534,14 @@
       elements.challengeSection.style.display = 'flex';
 
       requestAnimationFrame(() => {
-        fitCanvas(elements.mysteryCanvas, mysteryCtx);
-        fitCanvas(elements.liveCanvas, liveCtx);
-
-      // Reset for new challenge session
-      state.totalRounds = 0;
-      state.score = 0;
-      
-      startRound();
-      console.log('Challenge mode activated. Target word:', state.currentTarget?.word);
+        requestAnimationFrame(() => {
+          fitCanvas(elements.mysteryCanvas, mysteryCtx);
+          fitCanvas(elements.liveCanvas, liveCtx);
+          state.totalRounds = 0;
+          state.score = 0;
+          startRound();
+          console.log('Challenge mode activated. Target word:', state.currentTarget?.word);
+        });
       });
     }
 
