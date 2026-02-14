@@ -1036,10 +1036,13 @@
       container.appendChild(wordLabel);
       container.appendChild(timestamp);
       
-      // Click to view details
-      container.addEventListener('click', () => {
-        showWordDetails(index);
+      // Click to view details | Shift+Click to delete
+      container.addEventListener('click', (e) => {
+        const idx = Number(container.getAttribute('data-index'));
+        if (e.shiftKey) return deleteCapture(idx);
+        showWordDetails(idx);
       });
+
 
       elements.gallery.appendChild(container);
     }
@@ -1047,6 +1050,31 @@
     function showWordDetails(index) {
       const item = state.library[index];
       alert(`Word: ${item.word}\nCaptured: ${item.timestamp}\n\nAI Analysis:\n${item.analysis}`);
+    }
+
+    function deleteCapture(index) {
+      if (!confirm(`Delete "${state.library[index]?.word}" from dataset?`)) return;
+
+      // remove from dataset
+      state.library.splice(index, 1);
+
+      // remove from DOM
+      const el = elements.gallery.querySelector(`[data-index="${index}"]`);
+      if (el) el.remove();
+
+      // reindex remaining DOM items so clicks still map correctly
+      [...elements.gallery.querySelectorAll(".captured-item")].forEach((itemEl, newIdx) => {
+        itemEl.setAttribute("data-index", newIdx);
+      });
+
+      // if you deleted the active target while in challenge, bail to lab safely
+      if (state.currentTarget && !state.library.includes(state.currentTarget)) {
+        switchToLab();
+      }
+
+      // update UI
+      updateProgress();
+      updateStats();
     }
 
     // ============================================
