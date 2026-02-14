@@ -605,7 +605,6 @@
     /* Responsive */
     @media (max-width: 768px) {
       /* Make canvases shorter ONLY on mobile */
-      .canvas-container { height: 150px; }
       #liveCanvas, #mysteryCanvas { height: 150px; }
       #container { padding: 14px; }
 
@@ -995,16 +994,19 @@
       state.analyser.getByteFrequencyData(state.dataArray);
 
       // Scroll effect
-      const h = Math.floor(elements.liveCanvas.getBoundingClientRect().height);
-      const w = Math.floor(elements.liveCanvas.getBoundingClientRect().width);
-      const imgData = liveCtx.getImageData(0, 0, w, h - 2);
-      liveCtx.putImageData(imgData, 0, 2);
+      const dpr = window.devicePixelRatio || 1;
+      const scroll = Math.max(1, Math.round(2 * dpr));
+      const w = elements.liveCanvas.width;
+      const h = elements.liveCanvas.height;
 
-      // Draw new frequency line
-      const binsToShow = 80; // try 60–120
+      const imgData = liveCtx.getImageData(0, 0, w, h - scroll);
+      liveCtx.putImageData(imgData, 0, scroll);
+
+      const binsToShow = 80;
       const barWidth = w / binsToShow;
-      const noiseFloor = 18;                 // raise/lower: higher = darker background
-      const gamma = 1.6;                     // contrast: higher = stronger bright bands
+
+      liveCtx.fillRect(i * barWidth, 0, barWidth, scroll);
+
 
       for (let i = 0; i < binsToShow; i++) {
         const val = state.dataArray[i];
@@ -1521,21 +1523,29 @@
     function switchToChallenge() {
       elements.labSection.classList.add('hidden');
       elements.challengeSection.style.display = 'flex';
-      
+
+      requestAnimationFrame(() => {
+        fitCanvas(elements.mysteryCanvas, mysteryCtx);
+        fitCanvas(elements.liveCanvas, liveCtx);
+
       // Reset for new challenge session
       state.totalRounds = 0;
       state.score = 0;
       
-      // Start first round (this will set initial question using getInitialQuestion)
       startRound();
-      
       console.log('Challenge mode activated. Target word:', state.currentTarget?.word);
+      });
     }
 
     function switchToLab() {
       elements.challengeSection.style.display = 'none';
       elements.labSection.classList.remove('hidden');
       state.currentTarget = null;
+      requestAnimationFrame(() => {
+        fitCanvas(elements.liveCanvas, liveCtx);
+        fitCanvas(elements.mysteryCanvas, mysteryCtx);
+      });
+
     }
 
     // ============================================
